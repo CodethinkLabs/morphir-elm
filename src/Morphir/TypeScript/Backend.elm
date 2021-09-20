@@ -84,6 +84,29 @@ mapModuleDefinition opt distribution currentPackagePath currentModulePath access
     [moduleUnit]
 
 
+{-| Map a Morphir Constructor (A tuple of Name and Constructor Args) to a Typescript AST Interface
+-}
+mapConstructor : ( Name, List ( Name, Type.Type ta ) ) -> TS.TypeDef
+mapConstructor ( ctorName, ctorArgs ) =
+    let
+        nameInTitleCase =
+            ctorName |> Name.toTitleCase
+
+        kindField =
+            ( "kind", TS.LiteralString nameInTitleCase )
+
+        otherFields =
+            ctorArgs
+                |> List.map
+                    (\( argName, argType ) ->
+                        ( argName |> Name.toCamelCase, mapTypeExp argType )
+                    )
+    in
+    TS.Interface
+        nameInTitleCase
+        (kindField :: otherFields)
+
+
 {-| Map a Morphir type definition into a list of TypeScript type definitions. The reason for returning a list is that
 some Morphir type definitions can only be represented by a combination of multiple type definitions in TypeScript.
 -}
@@ -96,7 +119,7 @@ mapTypeDefinition name typeDef =
                 (typeExp |> mapTypeExp)
             ]
 
-        Type.CustomTypeDefinition typeArgs accessControlledConstructors ->
+        Type.CustomTypeDefinition _ accessControlledConstructors ->
             let
                 constructors =
                     accessControlledConstructors.value
@@ -104,17 +127,7 @@ mapTypeDefinition name typeDef =
 
                 constructorInterfaces =
                     constructors
-                        |> List.map
-                            (\( ctorName, ctorArgs ) ->
-                                TS.Interface
-                                    (ctorName |> Name.toTitleCase)
-                                    (ctorArgs
-                                        |> List.map
-                                            (\( argName, argType ) ->
-                                                ( argName |> Name.toCamelCase, mapTypeExp argType )
-                                            )
-                                    )
-                            )
+                        |> List.map mapConstructor
 
                 union =
                     TS.TypeAlias
@@ -147,6 +160,9 @@ mapTypeExp tpe =
 
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "basics" ] ], [ "bool" ] ) [] ->
             TS.Boolean
+
+        Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "list" ] ], [ "list" ] ) [ listType ] ->
+            TS.List (mapTypeExp listType)
 
         Type.Reference _ ( packageName, moduleName, localName ) [] ->
             TS.TypeRef (localName |> Name.toTitleCase)

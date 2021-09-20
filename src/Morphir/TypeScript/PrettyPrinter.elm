@@ -63,6 +63,9 @@ mapTypeDef opt typeDef =
 mapTypeExp : Options -> TypeExp -> Doc
 mapTypeExp opt typeExp =
     case typeExp of
+        LiteralString stringval ->
+            "\"" ++ stringval ++ "\""
+
         String ->
             "string"
 
@@ -71,6 +74,9 @@ mapTypeExp opt typeExp =
 
         Boolean ->
             "boolean"
+
+        List listType ->
+            "Array<" ++ mapTypeExp opt listType ++ ">"
 
         Union types ->
             types

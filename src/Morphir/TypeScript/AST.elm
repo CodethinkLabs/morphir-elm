@@ -41,6 +41,8 @@ type TypeExp
     = String
     | Number
     | Boolean
+    | LiteralString String
+    | List TypeExp
     | Union (List TypeExp)
     | TypeRef String
     | Any
