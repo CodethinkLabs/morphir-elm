@@ -38,6 +38,9 @@ mapTypeDef opt typeDef =
         TypeAlias name typeExp ->
             concat [ "type ", name, " = ", mapTypeExp opt typeExp ]
 
+        Interface name [] ->
+            concat [ "interface ", name, " {}" ]
+
         Interface name fields ->
             concat
                 [ "interface "
