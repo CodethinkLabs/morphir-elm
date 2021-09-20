@@ -42,7 +42,7 @@ mapTypeDef opt typeDef =
             concat
                 [ "interface "
                 , name
-                , "{"
+                , " {"
                 , newLine
                 , fields
                     |> List.map
