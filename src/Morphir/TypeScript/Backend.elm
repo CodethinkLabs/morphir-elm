@@ -133,30 +133,43 @@ mapTypeDefinition name typeDef =
 
             Type.CustomTypeDefinition _ accessControlledConstructors ->
                 let
+                    typeName =
+                        name |> Name.toTitleCase
+
                     constructors =
                         accessControlledConstructors.value
                             |> Dict.toList
+
+                    constructorNames =
+                        accessControlledConstructors.value
+                            |> Dict.keys
+                            |> List.map Name.toTitleCase
 
                     constructorInterfaces =
                         constructors
                             |> List.map (mapConstructor export)
 
                     union =
-                        TS.TypeAlias
-                            { name = (name |> Name.toTitleCase)
-                            , typeExp =
-                                (TS.Union
-                                    (constructors
-                                        |> List.map
-                                            (\( ctorName, _ ) ->
-                                                TS.TypeRef (ctorName |> Name.toTitleCase)
+                        if List.all ((==) typeName) constructorNames then
+                            []
+
+                        else
+                            List.singleton
+                                (TS.TypeAlias
+                                    { name = typeName
+                                    , typeExp = (TS.Union
+                                            (constructors
+                                                |> List.map
+                                                    (\( ctorName, _ ) ->
+                                                        TS.TypeRef (ctorName |> Name.toTitleCase)
+                                                    )
                                             )
-                                    )
+                                        )
+                                    , export = export
+                                    }
                                 )
-                            , export = export
-                            }
                 in
-                constructorInterfaces ++ [ union ]
+                constructorInterfaces ++ union
 
 
 {-| Map a Morphir type expression into a TypeScript type expression.
