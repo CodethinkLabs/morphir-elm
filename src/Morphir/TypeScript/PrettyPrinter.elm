@@ -37,32 +37,41 @@ mapCompilationUnit opt cu =
         , newLine
         ]
 
+maybeExport : Bool -> String
+maybeExport export =
+    case export of
+        True -> "export "
+        False -> ""
+
+
 {-| Map a type definition to text.
 -}
 mapTypeDef : Options -> TypeDef -> Doc
 mapTypeDef opt typeDef =
     case typeDef of
-        TypeAlias name typeExp ->
-            concat [ "type ", name, " = ", mapTypeExp opt typeExp ]
+        TypeAlias { name, typeExp, export } ->
+            concat [ (maybeExport export), "type ", name, " = ", mapTypeExp opt typeExp ]
 
-        Interface name [] ->
-            concat [ "interface ", name, " {}" ]
-
-        Interface name fields ->
-            concat
-                [ "interface "
-                , name
-                , " {"
-                , newLine
-                , fields
-                    |> List.map
-                        (\( fieldName, fieldType ) ->
-                            concat [ fieldName, ": ", mapTypeExp opt fieldType, ";" ]
-                        )
-                    |> indentLines opt.indentDepth
-                , newLine
-                , "}"
-                ]
+        Interface { name, fields, export } ->
+            case fields of
+                [] ->
+                    concat [ (maybeExport export), "interface ", name, " {}" ]
+                _ ->
+                    concat
+                        [ (maybeExport export)
+                        , "interface "
+                        , name
+                        , " {"
+                        , newLine
+                        , fields
+                            |> List.map
+                                (\( fieldName, fieldType ) ->
+                                    concat [ fieldName, ": ", mapTypeExp opt fieldType, ";" ]
+                                )
+                            |> indentLines opt.indentDepth
+                        , newLine
+                        , "}"
+                        ]
 
 
 {-| Map a type expression to text.

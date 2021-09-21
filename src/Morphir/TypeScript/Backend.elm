@@ -91,8 +91,8 @@ mapModuleDefinition opt distribution currentPackagePath currentModulePath access
 
 {-| Map a Morphir Constructor (A tuple of Name and Constructor Args) to a Typescript AST Interface
 -}
-mapConstructor : ( Name, List ( Name, Type.Type ta ) ) -> TS.TypeDef
-mapConstructor ( ctorName, ctorArgs ) =
+mapConstructor : Bool -> ( Name, List ( Name, Type.Type ta ) ) -> TS.TypeDef
+mapConstructor export ( ctorName, ctorArgs ) =
     let
         nameInTitleCase =
             ctorName |> Name.toTitleCase
@@ -108,8 +108,10 @@ mapConstructor ( ctorName, ctorArgs ) =
                     )
     in
     TS.Interface
-        nameInTitleCase
-        (kindField :: otherFields)
+        { name = nameInTitleCase
+        , fields = (kindField :: otherFields)
+        , export = export
+        }
 
 
 {-| Map a Morphir type definition into a list of TypeScript type definitions. The reason for returning a list is that
@@ -117,36 +119,44 @@ some Morphir type definitions can only be represented by a combination of multip
 -}
 mapTypeDefinition : Name -> AccessControlled (Documented (Type.Definition ta)) -> List TS.TypeDef
 mapTypeDefinition name typeDef =
-    case typeDef.value.value of
-        Type.TypeAliasDefinition typeArgs typeExp ->
-            [ TS.TypeAlias
-                (name |> Name.toTitleCase)
-                (typeExp |> mapTypeExp)
-            ]
+    let
+        export = (typeDef.access == Public)
+    in
+        case typeDef.value.value of
+            Type.TypeAliasDefinition typeArgs typeExp ->
+                [ TS.TypeAlias
+                    { name = (name |> Name.toTitleCase)
+                    , typeExp = (typeExp |> mapTypeExp)
+                    , export = export
+                    }
+                ]
 
-        Type.CustomTypeDefinition _ accessControlledConstructors ->
-            let
-                constructors =
-                    accessControlledConstructors.value
-                        |> Dict.toList
+            Type.CustomTypeDefinition _ accessControlledConstructors ->
+                let
+                    constructors =
+                        accessControlledConstructors.value
+                            |> Dict.toList
 
-                constructorInterfaces =
-                    constructors
-                        |> List.map mapConstructor
+                    constructorInterfaces =
+                        constructors
+                            |> List.map (mapConstructor export)
 
-                union =
-                    TS.TypeAlias
-                        (name |> Name.toTitleCase)
-                        (TS.Union
-                            (constructors
-                                |> List.map
-                                    (\( ctorName, _ ) ->
-                                        TS.TypeRef (ctorName |> Name.toTitleCase)
+                    union =
+                        TS.TypeAlias
+                            { name = (name |> Name.toTitleCase)
+                            , typeExp =
+                                (TS.Union
+                                    (constructors
+                                        |> List.map
+                                            (\( ctorName, _ ) ->
+                                                TS.TypeRef (ctorName |> Name.toTitleCase)
+                                            )
                                     )
-                            )
-                        )
-            in
-            constructorInterfaces ++ [ union ]
+                                )
+                            , export = export
+                            }
+                in
+                constructorInterfaces ++ [ union ]
 
 
 {-| Map a Morphir type expression into a TypeScript type expression.

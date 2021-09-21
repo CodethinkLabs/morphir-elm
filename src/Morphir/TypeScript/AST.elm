@@ -25,8 +25,16 @@ type alias CompilationUnit =
 {-| Represents a type definition.
 -}
 type TypeDef
-    = TypeAlias String TypeExp
-    | Interface String (List FieldDef)
+    = TypeAlias
+        { name : String
+        , typeExp: TypeExp
+        , export: Bool
+        }
+    | Interface
+        { name: String
+        , fields: (List FieldDef)
+        , export: Bool
+        }
 
 
 {-| A type expression represents the right-hand side of a type annotation or a type alias.
