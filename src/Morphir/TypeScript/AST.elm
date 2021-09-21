@@ -17,6 +17,7 @@ that we use in the backend.
 type alias CompilationUnit =
     { dirPath : List String
     , fileName : String
+    , namespace: String
     , typeDefs : List (TypeDef)
     }
 

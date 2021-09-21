@@ -67,6 +67,10 @@ mapModuleDefinition opt distribution currentPackagePath currentModulePath access
                 lastName :: reverseModulePath ->
                     ( List.append (currentPackagePath |> List.map (Name.toCamelCase >> String.toLower)) (reverseModulePath |> List.reverse |> List.map (Name.toCamelCase >> String.toLower)), lastName )
 
+        typeScriptNamespace =
+            String.join "."
+                ((currentPackagePath ++ currentModulePath) |> List.map (Name.toTitleCase))
+
         typeDefs : List (TS.TypeDef)
         typeDefs =
             accessControlledModuleDef.value.types
@@ -78,6 +82,7 @@ mapModuleDefinition opt distribution currentPackagePath currentModulePath access
         moduleUnit =
             { dirPath = typeScriptPackagePath
             , fileName = (moduleName |> Name.toTitleCase) ++ ".ts"
+            , namespace = typeScriptNamespace
             , typeDefs = typeDefs
             }
     in
