@@ -170,7 +170,7 @@ mapTypeExp tpe =
             TS.List (mapTypeExp listType)
 
         Type.Reference _ ( packageName, moduleName, localName ) [] ->
-            TS.TypeRef (localName |> Name.toTitleCase)
+            TS.TypeRef (String.join "." (List.map Name.toTitleCase (packageName ++ moduleName ++ [localName])))
 
         Type.Reference _ fqName _ ->
             TS.UnhandledType ("Reference " ++ (FQName.toString fqName) ++ ")")
