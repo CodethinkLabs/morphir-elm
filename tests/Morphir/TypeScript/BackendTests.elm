@@ -34,17 +34,27 @@ mapTypeDefinitionTests =
                         )
                     )
                     |> Expect.equal
-                        [ TS.Interface "Bar"
-                            []
-                        , TS.Interface "Baz"
-                            [ ( "myField", TS.String )
-                            ]
-                        , TS.TypeAlias "MyFoo"
-                            (TS.Union
+                        [ TS.Interface
+                            { name = "Bar"
+                            , fields = [ ( "kind", TS.LiteralString "Bar" ) ]
+                            , export = True
+                            }
+                        , TS.Interface
+                            { name = "Baz"
+                            , fields =
+                                [ ( "kind", TS.LiteralString "Baz" )
+                                , ( "myField", TS.String )
+                                ]
+                            , export = True
+                            }
+                        , TS.TypeAlias
+                            { name = "MyFoo"
+                            , typeExp = (TS.Union
                                 [ TS.TypeRef "Bar"
                                 , TS.TypeRef "Baz"
-                                ]
-                            )
+                                ])
+                            , export = True
+                            }
                         ]
             )
         ]
