@@ -300,7 +300,7 @@ mapTypeExp tpe =
             , importDefList
             )
 
-        Type.Reference _ ( packageName, moduleName, localName ) typeList ->
+        Type.Reference _ fqn typeList ->
             let
                 ( mappedTypeList, importDefList ) =
                     typeList
@@ -311,9 +311,9 @@ mapTypeExp tpe =
                                 )
                            )
             in
-            ( TS.TypeRef (localName |> Name.toTitleCase) mappedTypeList
-            , { importRef = localName |> Name.toTitleCase
-              , sourceFile = "./" ++ Path.toString Name.toTitleCase "/" moduleName
+            ( TS.TypeRef (fqn |> FQName.toString) mappedTypeList
+            , { importRef = fqn |> FQName.toString
+              , sourceFile = fqn |> FQName.toString
               }
                 :: importDefList
             )
