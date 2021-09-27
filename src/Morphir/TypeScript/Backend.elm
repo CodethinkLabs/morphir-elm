@@ -110,12 +110,17 @@ mapConstructor privacy variables ( ctorName, ctorArgs ) =
         kindField =
             ( "kind", TS.LiteralString nameInTitleCase )
 
-        otherFields =
+        ( otherFields, importDefList ) =
             ctorArgs
                 |> List.map
                     (\( argName, argType ) ->
                         ( argName |> Name.toCamelCase, mapTypeExp argType )
                     )
+                |> (\resultsList ->
+                        ( resultsList |> List.map (\( argNameinCamelCase, ( mappedArgType, _ ) ) -> ( argNameinCamelCase, mappedArgType ))
+                        , resultsList |> List.map (\( _, ( _, importDefSubList ) ) -> importDefSubList) |> List.concat
+                        )
+                   )
 
         interface : TS.TypeDef
         interface =
@@ -126,7 +131,7 @@ mapConstructor privacy variables ( ctorName, ctorArgs ) =
                 , fields = kindField :: otherFields
                 }
     in
-    ( interface, sampleImportDefs )
+    ( interface, importDefList )
 
 
 {-| Map a Morphir type definition into a list of TypeScript type definitions. The reason for returning a list is that
@@ -150,7 +155,7 @@ mapTypeDefinition name typeDef =
         Type.TypeAliasDefinition variables typeExp ->
             let
                 ( mappedTypeExpression, importDefs ) =
-                    ( mapTypeExp typeExp, sampleImportDefs )
+                    mapTypeExp typeExp
 
                 typeDefs =
                     [ TS.TypeAlias
@@ -223,50 +228,120 @@ mapTypeDefinition name typeDef =
 
 {-| Map a Morphir type expression into a TypeScript type expression.
 -}
-mapTypeExp : Type.Type ta -> TS.TypeExp
+mapTypeExp : Type.Type ta -> ( TS.TypeExp, List TS.ImportDef )
 mapTypeExp tpe =
     case tpe of
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "basics" ] ], [ "bool" ] ) [] ->
-            TS.Boolean
+            ( TS.Boolean, sampleImportDefs )
 
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "dict" ] ], [ "dict" ] ) [ dictKeyType, dictValType ] ->
-            TS.List (TS.Tuple [ mapTypeExp dictKeyType, mapTypeExp dictValType ])
+            let
+                ( mappedDictType, dictImportDefs ) =
+                    mapTypeExp dictKeyType
+
+                ( mappedValType, valImportDefs ) =
+                    mapTypeExp dictValType
+            in
+            ( TS.List (TS.Tuple [ mappedDictType, mappedValType ])
+            , dictImportDefs ++ valImportDefs
+            )
 
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "list" ] ], [ "list" ] ) [ listType ] ->
-            TS.List (mapTypeExp listType)
+            let
+                ( mappedTypeExpression, importDefs ) =
+                    mapTypeExp listType
+            in
+            ( TS.List mappedTypeExpression
+            , importDefs
+            )
 
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "basics" ] ], [ "float" ] ) [] ->
-            TS.Number
+            ( TS.Number
+            , sampleImportDefs
+            )
 
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "basics" ] ], [ "int" ] ) [] ->
-            TS.Number
+            ( TS.Number
+            , sampleImportDefs
+            )
 
         Type.Record _ fieldList ->
-            TS.Object
-                (fieldList
-                    |> List.map
-                        (\field ->
-                            ( field.name |> Name.toTitleCase, mapTypeExp field.tpe )
-                        )
-                )
+            let
+                getFieldAndImportDefs : Type.Field a -> ( ( String, TS.TypeExp ), List TS.ImportDef )
+                getFieldAndImportDefs field =
+                    let
+                        ( fieldType, fieldImportDefs ) =
+                            mapTypeExp field.tpe
+                    in
+                    ( ( field.name |> Name.toTitleCase, fieldType ), fieldImportDefs )
+
+                ( mappedFieldList, importDefs ) =
+                    fieldList
+                        |> List.map getFieldAndImportDefs
+                        |> (\resultsList ->
+                                ( resultsList |> List.map (\( mappedField, _ ) -> mappedField)
+                                , resultsList |> List.map (\( _, fieldImportDefs ) -> fieldImportDefs) |> List.concat
+                                )
+                           )
+            in
+            ( TS.Object mappedFieldList
+            , importDefs
+            )
 
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "string" ] ], [ "string" ] ) [] ->
-            TS.String
+            ( TS.String
+            , sampleImportDefs
+            )
 
         Type.Tuple _ tupleTypesList ->
-            TS.Tuple (List.map mapTypeExp tupleTypesList)
+            let
+                ( mappedTypeExpressions, importDefList ) =
+                    tupleTypesList
+                        |> List.map mapTypeExp
+                        |> (\resultsList ->
+                                ( resultsList |> List.map (\( mappedTypeExp, _ ) -> mappedTypeExp)
+                                , resultsList |> List.map (\( _, importDefSubList ) -> importDefSubList) |> List.concat
+                                )
+                           )
+            in
+            ( TS.Tuple mappedTypeExpressions
+            , importDefList
+            )
 
         Type.Reference _ ( packageName, moduleName, localName ) typeList ->
-            TS.TypeRef (localName |> Name.toTitleCase) (typeList |> List.map mapTypeExp)
+            let
+                ( mappedTypeList, importDefList ) =
+                    typeList
+                        |> List.map mapTypeExp
+                        |> (\resultsList ->
+                                ( resultsList |> List.map (\( mappedTypeExp, _ ) -> mappedTypeExp)
+                                , resultsList |> List.map (\( _, importDefSubList ) -> importDefSubList) |> List.concat
+                                )
+                           )
+            in
+            ( TS.TypeRef (localName |> Name.toTitleCase) mappedTypeList
+            , { importRef = localName |> Name.toTitleCase
+              , sourceFile = "./" ++ Path.toString Name.toTitleCase "/" moduleName
+              }
+                :: importDefList
+            )
 
         Type.Unit _ ->
-            TS.Tuple []
+            ( TS.Tuple []
+            , sampleImportDefs
+            )
 
         Type.Variable _ name ->
-            TS.Variable (Name.toCamelCase name)
+            ( TS.Variable (Name.toCamelCase name)
+            , sampleImportDefs
+            )
 
         Type.ExtensibleRecord a argName fields ->
-            TS.UnhandledType "ExtensibleRecord"
+            ( TS.UnhandledType "ExtensibleRecord"
+            , sampleImportDefs
+            )
 
         Type.Function a argType returnType ->
-            TS.UnhandledType "Function"
+            ( TS.UnhandledType "Function"
+            , sampleImportDefs
+            )
