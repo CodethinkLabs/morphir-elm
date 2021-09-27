@@ -22,14 +22,6 @@ import Morphir.TypeScript.AST as TS exposing (TypeDef)
 import Morphir.TypeScript.PrettyPrinter as PrettyPrinter
 
 
-sampleImportDefs : List TS.ImportDef
-sampleImportDefs =
-    [ { importRef = "firstImport", sourceFile = "./FirstImport" }
-    , { importRef = "secondImport", sourceFile = "./SecondImport" }
-    , { importRef = "thirdImport", sourceFile = "./ThirdImport" }
-    ]
-
-
 {-| Placeholder for code generator options. Currently empty.
 -}
 type alias Options =
@@ -232,7 +224,7 @@ mapTypeExp : Type.Type a -> ( TS.TypeExp, List TS.ImportDef )
 mapTypeExp tpe =
     case tpe of
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "basics" ] ], [ "bool" ] ) [] ->
-            ( TS.Boolean, sampleImportDefs )
+            ( TS.Boolean, [] )
 
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "dict" ] ], [ "dict" ] ) [ dictKeyType, dictValType ] ->
             let
@@ -257,12 +249,12 @@ mapTypeExp tpe =
 
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "basics" ] ], [ "float" ] ) [] ->
             ( TS.Number
-            , sampleImportDefs
+            , []
             )
 
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "basics" ] ], [ "int" ] ) [] ->
             ( TS.Number
-            , sampleImportDefs
+            , []
             )
 
         Type.Record _ fieldList ->
@@ -290,7 +282,7 @@ mapTypeExp tpe =
 
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "string" ] ], [ "string" ] ) [] ->
             ( TS.String
-            , sampleImportDefs
+            , []
             )
 
         Type.Tuple _ tupleTypesList ->
@@ -328,20 +320,20 @@ mapTypeExp tpe =
 
         Type.Unit _ ->
             ( TS.Tuple []
-            , sampleImportDefs
+            , []
             )
 
         Type.Variable _ name ->
             ( TS.Variable (Name.toCamelCase name)
-            , sampleImportDefs
+            , []
             )
 
         Type.ExtensibleRecord a argName fields ->
             ( TS.UnhandledType "ExtensibleRecord"
-            , sampleImportDefs
+            , []
             )
 
         Type.Function a argType returnType ->
             ( TS.UnhandledType "Function"
-            , sampleImportDefs
+            , []
             )
