@@ -22,6 +22,14 @@ import Morphir.TypeScript.AST as TS exposing (TypeDef)
 import Morphir.TypeScript.PrettyPrinter as PrettyPrinter
 
 
+sampleImportDefs : List TS.ImportDef
+sampleImportDefs =
+    [ { importRef = "firstImport", sourceFile = "./FirstImport" }
+    , { importRef = "secondImport", sourceFile = "./SecondImport" }
+    , { importRef = "thirdImport", sourceFile = "./ThirdImport" }
+    ]
+
+
 {-| Placeholder for code generator options. Currently empty.
 -}
 type alias Options =
@@ -71,15 +79,14 @@ mapModuleDefinition opt distribution currentPackagePath currentModulePath access
 
         typeDefsAndImportDefs : ( List TS.TypeDef, List TS.ImportDef )
         typeDefsAndImportDefs =
-            ( accessControlledModuleDef.value.types
+            accessControlledModuleDef.value.types
                 |> Dict.toList
                 |> List.map (\( typeName, typeDef ) -> mapTypeDefinition typeName typeDef)
-                |> List.concat
-            , [ { importRef = "firstImport", sourceFile = "./FirstImport" }
-              , { importRef = "secondImport", sourceFile = "./SecondImport" }
-              , { importRef = "thirdImport", sourceFile = "./ThirdImport" }
-              ]
-            )
+                |> (\resultsList ->
+                        ( resultsList |> List.map (\( typeDefList, _ ) -> typeDefList) |> List.concat
+                        , resultsList |> List.map (\( _, importDefList ) -> importDefList) |> List.concat
+                        )
+                   )
 
         moduleUnit : TS.CompilationUnit
         moduleUnit =
@@ -121,7 +128,7 @@ mapConstructor privacy variables ( ctorName, ctorArgs ) =
 {-| Map a Morphir type definition into a list of TypeScript type definitions. The reason for returning a list is that
 some Morphir type definitions can only be represented by a combination of multiple type definitions in TypeScript.
 -}
-mapTypeDefinition : Name -> AccessControlled (Documented (Type.Definition ta)) -> List TS.TypeDef
+mapTypeDefinition : Name -> AccessControlled (Documented (Type.Definition ta)) -> ( List TS.TypeDef, List TS.ImportDef )
 mapTypeDefinition name typeDef =
     let
         doc =
@@ -137,14 +144,21 @@ mapTypeDefinition name typeDef =
     in
     case typeDef.value.value of
         Type.TypeAliasDefinition variables typeExp ->
-            [ TS.TypeAlias
-                { name = name |> Name.toTitleCase
-                , privacy = privacy
-                , doc = doc
-                , variables = variables |> List.map Name.toCamelCase |> List.map (\var -> TS.Variable var)
-                , typeExpression = typeExp |> mapTypeExp
-                }
-            ]
+            let
+                ( mappedTypeExpression, importDefs ) =
+                    ( mapTypeExp typeExp, sampleImportDefs )
+
+                typeDefs =
+                    [ TS.TypeAlias
+                        { name = name |> Name.toTitleCase
+                        , privacy = privacy
+                        , doc = doc
+                        , variables = variables |> List.map Name.toCamelCase |> List.map (\var -> TS.Variable var)
+                        , typeExpression = mappedTypeExpression
+                        }
+                    ]
+            in
+            ( typeDefs, importDefs )
 
         Type.CustomTypeDefinition variables accessControlledConstructors ->
             let
@@ -163,9 +177,10 @@ mapTypeDefinition name typeDef =
                         |> Dict.keys
                         |> List.map Name.toTitleCase
 
-                constructorInterfaces =
-                    constructors
-                        |> List.map (mapConstructor privacy tsVariables)
+                ( constructorInterfaces, importDefs ) =
+                    ( constructors |> List.map (mapConstructor privacy tsVariables)
+                    , sampleImportDefs
+                    )
 
                 union =
                     if List.all ((==) typeName) constructorNames then
@@ -188,8 +203,11 @@ mapTypeDefinition name typeDef =
                                         )
                                 }
                             )
+
+                typeDefs =
+                    union ++ constructorInterfaces
             in
-            union ++ constructorInterfaces
+            ( typeDefs, importDefs )
 
 
 {-| Map a Morphir type expression into a TypeScript type expression.
