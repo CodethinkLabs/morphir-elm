@@ -101,7 +101,7 @@ mapModuleDefinition opt distribution currentPackagePath currentModulePath access
 
 {-| Map a Morphir Constructor (A tuple of Name and Constructor Args) to a Typescript AST Interface
 -}
-mapConstructor : TS.Privacy -> List TS.TypeExp -> ( Name, List ( Name, Type.Type ta ) ) -> TS.TypeDef
+mapConstructor : TS.Privacy -> List TS.TypeExp -> ( Name, List ( Name, Type.Type ta ) ) -> ( TS.TypeDef, List TS.ImportDef )
 mapConstructor privacy variables ( ctorName, ctorArgs ) =
     let
         nameInTitleCase =
@@ -116,13 +116,17 @@ mapConstructor privacy variables ( ctorName, ctorArgs ) =
                     (\( argName, argType ) ->
                         ( argName |> Name.toCamelCase, mapTypeExp argType )
                     )
+
+        interface : TS.TypeDef
+        interface =
+            TS.Interface
+                { name = nameInTitleCase
+                , privacy = privacy
+                , variables = variables
+                , fields = kindField :: otherFields
+                }
     in
-    TS.Interface
-        { name = nameInTitleCase
-        , privacy = privacy
-        , variables = variables
-        , fields = kindField :: otherFields
-        }
+    ( interface, sampleImportDefs )
 
 
 {-| Map a Morphir type definition into a list of TypeScript type definitions. The reason for returning a list is that
@@ -178,9 +182,16 @@ mapTypeDefinition name typeDef =
                         |> List.map Name.toTitleCase
 
                 ( constructorInterfaces, importDefs ) =
-                    ( constructors |> List.map (mapConstructor privacy tsVariables)
-                    , sampleImportDefs
-                    )
+                    constructors
+                        |> List.map (mapConstructor privacy tsVariables)
+                        |> (\resultsList ->
+                                ( resultsList
+                                    |> List.map (\( interface, _ ) -> interface)
+                                , resultsList
+                                    |> List.map (\( _, importDefList ) -> importDefList)
+                                    |> List.concat
+                                )
+                           )
 
                 union =
                     if List.all ((==) typeName) constructorNames then
