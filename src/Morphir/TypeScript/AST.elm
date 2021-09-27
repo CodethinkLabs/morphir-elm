@@ -1,6 +1,6 @@
 module Morphir.TypeScript.AST exposing
     ( TypeDef(..), TypeExp(..)
-    , CompilationUnit, ObjectExp, Privacy(..)
+    , CompilationUnit, ImportDef, ObjectExp, Privacy(..)
     )
 
 {-| This module contains the TypeScript AST (Abstract Syntax Tree). The purpose of this AST is to make it easier to
@@ -20,7 +20,16 @@ that we use in the backend.
 type alias CompilationUnit =
     { dirPath : List String
     , fileName : String
+    , imports : List ImportDef
     , typeDefs : List TypeDef
+    }
+
+
+{-| Represents an import of one Typescript entity from another typescript file
+-}
+type alias ImportDef =
+    { importRef : String
+    , sourceFile : String
     }
 
 

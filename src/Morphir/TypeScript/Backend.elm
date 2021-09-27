@@ -18,7 +18,7 @@ import Morphir.IR.Name as Name exposing (Name)
 import Morphir.IR.Package as Package
 import Morphir.IR.Path as Path exposing (Path)
 import Morphir.IR.Type as Type exposing (Type)
-import Morphir.TypeScript.AST as TS
+import Morphir.TypeScript.AST as TS exposing (TypeDef)
 import Morphir.TypeScript.PrettyPrinter as PrettyPrinter
 
 
@@ -76,10 +76,18 @@ mapModuleDefinition opt distribution currentPackagePath currentModulePath access
                 |> List.concatMap
                     (\( typeName, typeDef ) -> mapTypeDefinition typeName typeDef)
 
+        importDefs : List TS.ImportDef
+        importDefs =
+            [ { importRef = "firstImport", sourceFile = "./FirstImport" }
+            , { importRef = "secondImport", sourceFile = "./SecondImport" }
+            , { importRef = "thirdImport", sourceFile = "./ThirdImport" }
+            ]
+
         moduleUnit : TS.CompilationUnit
         moduleUnit =
             { dirPath = typeScriptPackagePath
             , fileName = (moduleName |> Name.toTitleCase) ++ ".ts"
+            , imports = importDefs
             , typeDefs = typeDefs
             }
     in
