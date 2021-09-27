@@ -108,7 +108,7 @@ mapConstructor privacy variables ( ctorName, ctorArgs ) =
         { name = nameInTitleCase
         , privacy = privacy
         , variables = variables
-        , fields = (kindField :: otherFields)
+        , fields = kindField :: otherFields
         }
 
 
@@ -132,11 +132,11 @@ mapTypeDefinition name typeDef =
     case typeDef.value.value of
         Type.TypeAliasDefinition variables typeExp ->
             [ TS.TypeAlias
-                { name = (name |> Name.toTitleCase)
+                { name = name |> Name.toTitleCase
                 , privacy = privacy
                 , doc = doc
-                , variables = (variables |> List.map Name.toCamelCase |> List.map (\var -> TS.Variable var))
-                , typeExpression = (typeExp |> mapTypeExp)
+                , variables = variables |> List.map Name.toCamelCase |> List.map (\var -> TS.Variable var)
+                , typeExpression = typeExp |> mapTypeExp
                 }
             ]
 
@@ -173,14 +173,13 @@ mapTypeDefinition name typeDef =
                                 , doc = doc
                                 , variables = tsVariables
                                 , typeExpression =
-                                    (TS.Union
+                                    TS.Union
                                         (constructors
                                             |> List.map
                                                 (\( ctorName, _ ) ->
                                                     TS.TypeRef (ctorName |> Name.toTitleCase) tsVariables
                                                 )
                                         )
-                                    )
                                 }
                             )
             in

@@ -38,14 +38,14 @@ type TypeDef
         { name : String
         , doc : String
         , privacy : Privacy
-        , variables: (List TypeExp)
-        , typeExpression: TypeExp
+        , variables : List TypeExp
+        , typeExpression : TypeExp
         }
     | Interface
-        { name: String
+        { name : String
         , privacy : Privacy
-        , variables: (List TypeExp)
-        , fields: ObjectExp
+        , variables : List TypeExp
+        , fields : ObjectExp
         }
 
 
