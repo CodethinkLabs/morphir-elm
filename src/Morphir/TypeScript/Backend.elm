@@ -80,15 +80,29 @@ mapModuleDefinition opt distribution currentPackagePath currentModulePath access
                         )
                    )
 
+        namePrefix : String
+        namePrefix =
+            (List.concat [ currentPackagePath, currentModulePath ] |> Path.toString Name.toTitleCase "_") ++ "_"
+
         moduleUnit : TS.CompilationUnit
         moduleUnit =
             { dirPath = typeScriptPackagePath
             , fileName = (moduleName |> Name.toTitleCase) ++ ".ts"
             , imports = Tuple.second typeDefsAndImportDefs
-            , typeDefs = Tuple.first typeDefsAndImportDefs
+            , typeDefs = Tuple.first typeDefsAndImportDefs |> List.map (prependNamePrefixForTypeDef namePrefix)
             }
     in
     [ moduleUnit ]
+
+
+prependNamePrefixForTypeDef : String -> TS.TypeDef -> TS.TypeDef
+prependNamePrefixForTypeDef namePrefix indivTypeDef =
+    case indivTypeDef of
+        TS.Interface rec ->
+            TS.Interface { rec | name = namePrefix ++ rec.name }
+
+        TS.TypeAlias rec ->
+            TS.TypeAlias { rec | name = namePrefix ++ rec.name }
 
 
 {-| Map a Morphir Constructor (A tuple of Name and Constructor Args) to a Typescript AST Interface
@@ -300,7 +314,7 @@ mapTypeExp tpe =
             , importDefList
             )
 
-        Type.Reference _ fqn typeList ->
+        Type.Reference _ ( packagePath, modulePath, localName ) typeList ->
             let
                 ( mappedTypeList, importDefList ) =
                     typeList
@@ -310,10 +324,38 @@ mapTypeExp tpe =
                                 , resultsList |> List.map (\( _, importDefSubList ) -> importDefSubList) |> List.concat
                                 )
                            )
+
+                underscoredName : String
+                underscoredName =
+                    String.join "_"
+                        [ Path.toString Name.toTitleCase "_" packagePath
+                        , Path.toString Name.toTitleCase "_" modulePath
+                        , Name.toTitleCase localName
+                        ]
+
+                renderModulePath : Path -> String
+                renderModulePath path =
+                    case path |> List.reverse of
+                        [] ->
+                            ""
+
+                        lastName :: reverseModulePath ->
+                            List.append
+                                (List.reverse reverseModulePath |> List.map (Name.toCamelCase >> String.toLower))
+                                [ lastName |> Name.toTitleCase ]
+                                |> String.join "/"
+
+                fileName : String
+                fileName =
+                    String.join "/"
+                        [ "../.."
+                        , packagePath |> Path.toString String.concat "/"
+                        , modulePath |> renderModulePath
+                        ]
             in
-            ( TS.TypeRef (fqn |> FQName.toString) mappedTypeList
-            , { importRef = fqn |> FQName.toString
-              , sourceFile = fqn |> FQName.toString
+            ( TS.TypeRef underscoredName mappedTypeList
+            , { importRef = underscoredName
+              , sourceFile = fileName
               }
                 :: importDefList
             )
