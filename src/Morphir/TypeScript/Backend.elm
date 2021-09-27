@@ -69,26 +69,24 @@ mapModuleDefinition opt distribution currentPackagePath currentModulePath access
                 lastName :: reverseModulePath ->
                     ( List.append (currentPackagePath |> List.map (Name.toCamelCase >> String.toLower)) (reverseModulePath |> List.reverse |> List.map (Name.toCamelCase >> String.toLower)), lastName )
 
-        typeDefs : List TS.TypeDef
-        typeDefs =
-            accessControlledModuleDef.value.types
+        typeDefsAndImportDefs : ( List TS.TypeDef, List TS.ImportDef )
+        typeDefsAndImportDefs =
+            ( accessControlledModuleDef.value.types
                 |> Dict.toList
-                |> List.concatMap
-                    (\( typeName, typeDef ) -> mapTypeDefinition typeName typeDef)
-
-        importDefs : List TS.ImportDef
-        importDefs =
-            [ { importRef = "firstImport", sourceFile = "./FirstImport" }
-            , { importRef = "secondImport", sourceFile = "./SecondImport" }
-            , { importRef = "thirdImport", sourceFile = "./ThirdImport" }
-            ]
+                |> List.map (\( typeName, typeDef ) -> mapTypeDefinition typeName typeDef)
+                |> List.concat
+            , [ { importRef = "firstImport", sourceFile = "./FirstImport" }
+              , { importRef = "secondImport", sourceFile = "./SecondImport" }
+              , { importRef = "thirdImport", sourceFile = "./ThirdImport" }
+              ]
+            )
 
         moduleUnit : TS.CompilationUnit
         moduleUnit =
             { dirPath = typeScriptPackagePath
             , fileName = (moduleName |> Name.toTitleCase) ++ ".ts"
-            , imports = importDefs
-            , typeDefs = typeDefs
+            , imports = Tuple.second typeDefsAndImportDefs
+            , typeDefs = Tuple.first typeDefsAndImportDefs
             }
     in
     [ moduleUnit ]
