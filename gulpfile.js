@@ -77,7 +77,7 @@ const build =
     )
 
 
-function morphirElmMake(projectDir, outputPath, options) {
+function morphirElmMake(projectDir, outputPath, options = {}) {
     args = [ './cli/morphir-elm.js', 'make', '-p', projectDir, '-o', outputPath ]
     if (options.typesOnly) {
         args.push('--types-only')
