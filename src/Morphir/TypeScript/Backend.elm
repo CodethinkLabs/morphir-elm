@@ -228,7 +228,7 @@ mapTypeDefinition name typeDef =
 
 {-| Map a Morphir type expression into a TypeScript type expression.
 -}
-mapTypeExp : Type.Type ta -> ( TS.TypeExp, List TS.ImportDef )
+mapTypeExp : Type.Type a -> ( TS.TypeExp, List TS.ImportDef )
 mapTypeExp tpe =
     case tpe of
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "basics" ] ], [ "bool" ] ) [] ->
