@@ -15,6 +15,9 @@ that we use in the backend.
 
 -}
 
+import Morphir.IR.FQName exposing (FQName)
+import Morphir.IR.Name exposing (Name)
+
 
 {-| -}
 type alias CompilationUnit =
@@ -35,14 +38,14 @@ type Privacy
 -}
 type TypeDef
     = TypeAlias
-        { name : String
+        { name : Name
         , doc : String
         , privacy : Privacy
         , variables : List TypeExp
         , typeExpression : TypeExp
         }
     | Interface
-        { name : String
+        { name : Name
         , privacy : Privacy
         , variables : List TypeExp
         , fields : ObjectExp
@@ -66,7 +69,7 @@ type TypeExp
     | Object ObjectExp
     | String
     | Tuple (List TypeExp)
-    | TypeRef String (List TypeExp)
+    | TypeRef FQName (List TypeExp)
     | Union (List TypeExp)
     | Variable String
     | UnhandledType String

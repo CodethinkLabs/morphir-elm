@@ -91,11 +91,8 @@ mapModuleDefinition opt distribution currentPackagePath currentModulePath access
 mapConstructor : TS.Privacy -> List TS.TypeExp -> ( Name, List ( Name, Type.Type ta ) ) -> TS.TypeDef
 mapConstructor privacy variables ( ctorName, ctorArgs ) =
     let
-        nameInTitleCase =
-            ctorName |> Name.toTitleCase
-
         kindField =
-            ( "kind", TS.LiteralString nameInTitleCase )
+            ( "kind", TS.LiteralString (ctorName |> Name.toTitleCase) )
 
         otherFields =
             ctorArgs
@@ -105,7 +102,7 @@ mapConstructor privacy variables ( ctorName, ctorArgs ) =
                     )
     in
     TS.Interface
-        { name = nameInTitleCase
+        { name = ctorName
         , privacy = privacy
         , variables = variables
         , fields = kindField :: otherFields
@@ -132,7 +129,7 @@ mapTypeDefinition name typeDef =
     case typeDef.value.value of
         Type.TypeAliasDefinition variables typeExp ->
             [ TS.TypeAlias
-                { name = name |> Name.toTitleCase
+                { name = name
                 , privacy = privacy
                 , doc = doc
                 , variables = variables |> List.map Name.toCamelCase |> List.map (\var -> TS.Variable var)
@@ -142,9 +139,6 @@ mapTypeDefinition name typeDef =
 
         Type.CustomTypeDefinition variables accessControlledConstructors ->
             let
-                typeName =
-                    name |> Name.toTitleCase
-
                 tsVariables =
                     variables |> List.map Name.toCamelCase |> List.map (\var -> TS.Variable var)
 
@@ -155,20 +149,19 @@ mapTypeDefinition name typeDef =
                 constructorNames =
                     accessControlledConstructors.value
                         |> Dict.keys
-                        |> List.map Name.toTitleCase
 
                 constructorInterfaces =
                     constructors
                         |> List.map (mapConstructor privacy tsVariables)
 
                 union =
-                    if List.all ((==) typeName) constructorNames then
+                    if List.all ((==) name) constructorNames then
                         []
 
                     else
                         List.singleton
                             (TS.TypeAlias
-                                { name = typeName
+                                { name = name
                                 , privacy = privacy
                                 , doc = doc
                                 , variables = tsVariables
@@ -177,7 +170,7 @@ mapTypeDefinition name typeDef =
                                         (constructors
                                             |> List.map
                                                 (\( ctorName, _ ) ->
-                                                    TS.TypeRef (ctorName |> Name.toTitleCase) tsVariables
+                                                    TS.TypeRef (FQName.fQName [] [] ctorName) tsVariables
                                                 )
                                         )
                                 }
@@ -221,8 +214,8 @@ mapTypeExp tpe =
         Type.Tuple _ tupleTypesList ->
             TS.Tuple (List.map mapTypeExp tupleTypesList)
 
-        Type.Reference _ ( packageName, moduleName, localName ) typeList ->
-            TS.TypeRef (localName |> Name.toTitleCase) (typeList |> List.map mapTypeExp)
+        Type.Reference _ fQName typeList ->
+            TS.TypeRef fQName (typeList |> List.map mapTypeExp)
 
         Type.Unit _ ->
             TS.Tuple []

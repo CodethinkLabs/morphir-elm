@@ -11,6 +11,8 @@ representation.
 -}
 
 import Morphir.File.SourceCode exposing (Doc, concat, empty, indentLines, newLine)
+import Morphir.IR.FQName as FQName exposing (FQName)
+import Morphir.IR.Name as Name exposing (Name)
 import Morphir.TypeScript.AST exposing (CompilationUnit, ObjectExp, Privacy(..), TypeDef(..), TypeExp(..))
 
 
@@ -78,7 +80,7 @@ mapTypeDef opt typeDef =
                 , newLine
                 , privacy |> exportIfPublic
                 , "type "
-                , name
+                , name |> Name.toTitleCase
                 , mapGenericVariables opt variables
                 , " = "
                 , mapTypeExp opt typeExpression
@@ -88,7 +90,7 @@ mapTypeDef opt typeDef =
             concat
                 [ privacy |> exportIfPublic
                 , "interface "
-                , name
+                , name |> Name.toTitleCase
                 , mapGenericVariables opt variables
                 , mapObjectExp opt fields
                 ]
@@ -150,7 +152,10 @@ mapTypeExp opt typeExp =
                 ]
 
         TypeRef name variables ->
-            name ++ mapGenericVariables opt variables
+            concat
+                [ name |> FQName.getLocalName |> Name.toTitleCase
+                , mapGenericVariables opt variables
+                ]
 
         Union types ->
             types |> List.map (mapTypeExp opt) |> String.join " | "
