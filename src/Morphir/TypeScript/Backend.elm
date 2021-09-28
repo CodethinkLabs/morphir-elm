@@ -19,7 +19,7 @@ import Morphir.IR.Package as Package
 import Morphir.IR.Path as Path exposing (Path)
 import Morphir.IR.Type as Type exposing (Type)
 import Morphir.TypeScript.AST as TS
-import Morphir.TypeScript.PrettyPrinter as PrettyPrinter
+import Morphir.TypeScript.PrettyPrinter as PrettyPrinter exposing (getTypeScriptPackagePathAndModuleName)
 
 
 {-| Placeholder for code generator options. Currently empty.
@@ -62,12 +62,7 @@ mapModuleDefinition : Options -> Distribution -> Package.PackageName -> Path -> 
 mapModuleDefinition opt distribution currentPackagePath currentModulePath accessControlledModuleDef =
     let
         ( typeScriptPackagePath, moduleName ) =
-            case currentModulePath |> List.reverse of
-                [] ->
-                    ( [], [] )
-
-                lastName :: reverseModulePath ->
-                    ( List.append (currentPackagePath |> List.map (Name.toCamelCase >> String.toLower)) (reverseModulePath |> List.reverse |> List.map (Name.toCamelCase >> String.toLower)), lastName )
+            getTypeScriptPackagePathAndModuleName currentPackagePath currentModulePath
 
         typeDefs : List TS.TypeDef
         typeDefs =
