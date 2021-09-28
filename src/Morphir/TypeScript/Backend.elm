@@ -80,6 +80,8 @@ mapModuleDefinition opt distribution currentPackagePath currentModulePath access
         moduleUnit =
             { dirPath = typeScriptPackagePath
             , fileName = (moduleName |> Name.toTitleCase) ++ ".ts"
+            , packagePath = currentPackagePath
+            , modulePath = currentModulePath
             , typeDefs = typeDefs
             }
     in

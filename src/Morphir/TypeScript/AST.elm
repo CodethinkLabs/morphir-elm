@@ -17,12 +17,15 @@ that we use in the backend.
 
 import Morphir.IR.FQName exposing (FQName)
 import Morphir.IR.Name exposing (Name)
+import Morphir.IR.Path exposing (Path)
 
 
 {-| -}
 type alias CompilationUnit =
     { dirPath : List String
     , fileName : String
+    , packagePath : Path
+    , modulePath : Path
     , typeDefs : List TypeDef
     }
 
