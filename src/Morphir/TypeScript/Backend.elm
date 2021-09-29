@@ -71,13 +71,24 @@ mapModuleDefinition opt distribution currentPackagePath currentModulePath access
                 |> List.concatMap
                     (\( typeName, typeDef ) -> mapTypeDefinition typeName typeDef)
 
+        namespace : TS.TypeDef
+        namespace =
+            TS.Namespace
+                { name =
+                    (currentPackagePath ++ currentModulePath)
+                        |> Path.toString Name.toTitleCase "_"
+                        |> List.singleton
+                , privacy = TS.Public
+                , content = typeDefs
+                }
+
         moduleUnit : TS.CompilationUnit
         moduleUnit =
             { dirPath = typeScriptPackagePath
             , fileName = (moduleName |> Name.toTitleCase) ++ ".ts"
             , packagePath = currentPackagePath
             , modulePath = currentModulePath
-            , typeDefs = typeDefs
+            , typeDefs = List.singleton namespace
             }
     in
     [ moduleUnit ]
@@ -116,12 +127,7 @@ mapTypeDefinition name typeDef =
             typeDef.value.doc
 
         privacy =
-            case typeDef.access of
-                Public ->
-                    TS.Public
-
-                Private ->
-                    TS.Private
+            typeDef.access |> mapPrivacy
     in
     case typeDef.value.value of
         Type.TypeAliasDefinition variables typeExp ->
@@ -225,3 +231,15 @@ mapTypeExp tpe =
 
         Type.Function a argType returnType ->
             TS.UnhandledType "Function"
+
+
+{-| Utility funciton: map an AccessControlled.Access object, to a TS.Privacy Object
+-}
+mapPrivacy : Access -> TS.Privacy
+mapPrivacy privacy =
+    case privacy of
+        Public ->
+            TS.Public
+
+        Private ->
+            TS.Private
