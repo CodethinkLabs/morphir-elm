@@ -56,6 +56,19 @@ type alias FileMapElement =
 mapPackageDefinition : Options -> Distribution -> Package.PackageName -> Package.Definition ta (Type ()) -> FileMap
 mapPackageDefinition opt distribution packagePath packageDef =
     let
+        topLevelNamespaceModule : TS.CompilationUnit
+        topLevelNamespaceModule =
+            mapTopLevelNamespaceModule packagePath packageDef
+
+        individualModules : List TS.CompilationUnit
+        individualModules =
+            packageDef.modules
+                |> Dict.toList
+                |> List.concatMap
+                    (\( modulePath, moduleImpl ) ->
+                        mapModuleDefinition opt distribution packagePath modulePath moduleImpl
+                    )
+
         compilationUnitToFileMapElement : TS.CompilationUnit -> FileMapElement
         compilationUnitToFileMapElement compilationUnit =
             let
@@ -64,17 +77,15 @@ mapPackageDefinition opt distribution packagePath packageDef =
                         |> PrettyPrinter.mapCompilationUnit standardPrettyPrinterOptions
             in
             ( ( compilationUnit.dirPath, compilationUnit.fileName ), fileContent )
+    in
+    (topLevelNamespaceModule :: individualModules)
+        |> List.map compilationUnitToFileMapElement
+        |> Dict.fromList
 
-        individualModuleFiles : List FileMapElement
-        individualModuleFiles =
-            packageDef.modules
-                |> Dict.toList
-                |> List.concatMap
-                    (\( modulePath, moduleImpl ) ->
-                        mapModuleDefinition opt distribution packagePath modulePath moduleImpl
-                            |> List.map compilationUnitToFileMapElement
-                    )
 
+mapTopLevelNamespaceModule : Package.PackageName -> Package.Definition ta (Type ()) -> TS.CompilationUnit
+mapTopLevelNamespaceModule packagePath packageDef =
+    let
         topLevelPackageName : String
         topLevelPackageName =
             case packagePath of
@@ -83,22 +94,13 @@ mapPackageDefinition opt distribution packagePath packageDef =
 
                 _ ->
                     ".ts"
-
-        topLevelCompilationUnit : TS.CompilationUnit
-        topLevelCompilationUnit =
-            { dirPath = []
-            , fileName = topLevelPackageName
-            , packagePath = []
-            , modulePath = []
-            , typeDefs = mapModuleNamespacesForTopLevelFile packagePath packageDef
-            }
-
-        topLevelNamespaceModuleFile : List FileMapElement
-        topLevelNamespaceModuleFile =
-            [ compilationUnitToFileMapElement topLevelCompilationUnit ]
     in
-    (individualModuleFiles ++ topLevelNamespaceModuleFile)
-        |> Dict.fromList
+    { dirPath = []
+    , fileName = topLevelPackageName
+    , packagePath = []
+    , modulePath = []
+    , typeDefs = mapModuleNamespacesForTopLevelFile packagePath packageDef
+    }
 
 
 mapModuleNamespacesForTopLevelFile : Package.PackageName -> Package.Definition ta (Type ()) -> List TS.TypeDef
