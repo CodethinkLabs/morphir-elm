@@ -309,8 +309,6 @@ mapTypeExp tpe =
             TS.UnhandledType "Function"
 
 
-{-| Utility funciton: map an AccessControlled.Access object, to a TS.Privacy Object
--}
 mapPrivacy : Access -> TS.Privacy
 mapPrivacy privacy =
     case privacy of
