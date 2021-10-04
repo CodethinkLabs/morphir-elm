@@ -72,7 +72,7 @@ collectRefsFromTypeDef typeDef =
                 ]
 
         ImportAlias importAlias ->
-            importAlias.typeExpression |> collectRefsFromTypeExpression
+            [ importAlias.namespacePath ]
 
 
 collectRefsFromTypeExpression : TypeExp -> List NamespacePath
@@ -95,9 +95,6 @@ collectRefsFromTypeExpression typeExp =
                 [ [ namespacePath packagePath modulePath ]
                 , subTypeExpList |> List.concatMap collectRefsFromTypeExpression
                 ]
-
-        NamespaceRef namespacePath ->
-            List.singleton namespacePath
 
         _ ->
             []
@@ -262,13 +259,13 @@ mapTypeDef opt typeDef =
                 , mapObjectExp opt fields
                 ]
 
-        ImportAlias { name, privacy, typeExpression } ->
+        ImportAlias { name, privacy, namespacePath } ->
             concat
                 [ privacy |> exportIfPublic
                 , "import "
                 , name |> Name.toTitleCase
                 , " = "
-                , typeExpression |> mapTypeExp opt
+                , namespaceNameFromPackageAndModule namespacePath.packagePath namespacePath.modulePath
                 ]
 
 
@@ -308,9 +305,6 @@ mapTypeExp opt typeExp =
 
         LiteralString stringval ->
             "\"" ++ stringval ++ "\""
-
-        NamespaceRef namespacePath ->
-            namespaceNameFromPackageAndModule namespacePath.packagePath namespacePath.modulePath
 
         Number ->
             "number"

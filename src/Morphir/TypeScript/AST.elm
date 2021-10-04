@@ -82,7 +82,7 @@ type TypeDef
     | ImportAlias
         { name : Name
         , privacy : Privacy
-        , typeExpression : TypeExp
+        , namespacePath : NamespacePath
         }
 
 
@@ -99,7 +99,6 @@ type TypeExp
     | Boolean
     | List TypeExp {- Represents a Morphir 'List' type, as a Typescript 'Array' type -}
     | LiteralString String
-    | NamespaceRef NamespacePath
     | Number
     | Object ObjectExp
     | String

@@ -115,7 +115,7 @@ mapModuleNamespacesForTopLevelFile packagePath packageDef =
                                 TS.ImportAlias
                                     { name = lastName
                                     , privacy = privacy
-                                    , typeExpression = TS.NamespaceRef namespacePath
+                                    , namespacePath = namespacePath
                                     }
 
                             step : Name -> TS.TypeDef -> TS.TypeDef
