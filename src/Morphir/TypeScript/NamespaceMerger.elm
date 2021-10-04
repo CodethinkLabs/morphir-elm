@@ -49,8 +49,8 @@ mergeNamespaces inputList =
         emptyListOfNamespaces =
             []
 
-        insertNameSpaceIntoList : TypeDef -> List TypeDef -> List TypeDef
-        insertNameSpaceIntoList insertDef listTypeDef =
+        insertNamespaceIntoList : TypeDef -> List TypeDef -> List TypeDef
+        insertNamespaceIntoList insertDef listTypeDef =
             case insertDef of
                 Namespace joinThisTo ->
                     if hasMatchInList listTypeDef insertDef then
@@ -95,7 +95,7 @@ mergeNamespaces inputList =
     List.concat
         [ nonNamespaces
         , originalNamespaces
-            |> List.foldr insertNameSpaceIntoList emptyListOfNamespaces
+            |> List.foldr insertNamespaceIntoList emptyListOfNamespaces
             |> List.map
                 (\typeDef ->
                     case typeDef of

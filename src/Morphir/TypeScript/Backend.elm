@@ -85,11 +85,11 @@ mapPackageDefinition opt distribution packagePath packageDef =
             , typeDefs = mapModuleNamespacesForTopLevelFile packagePath packageDef
             }
 
-        topLevelNameSpaceModuleFile : List ( ( List String, String ), String )
-        topLevelNameSpaceModuleFile =
+        topLevelNamespaceModuleFile : List ( ( List String, String ), String )
+        topLevelNamespaceModuleFile =
             [ compilationUnitToFileMapElement topLevelCompilationUnit ]
     in
-    (individualModuleFiles ++ topLevelNameSpaceModuleFile)
+    (individualModuleFiles ++ topLevelNamespaceModuleFile)
         |> Dict.fromList
 
 

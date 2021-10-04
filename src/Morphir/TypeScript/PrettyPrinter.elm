@@ -26,8 +26,8 @@ type alias Options =
     }
 
 
-nameSpaceNameFromPackageAndModule : Path -> Path -> String
-nameSpaceNameFromPackageAndModule packagePath modulePath =
+namespaceNameFromPackageAndModule : Path -> Path -> String
+namespaceNameFromPackageAndModule packagePath modulePath =
     (packagePath ++ modulePath)
         |> List.map Name.toTitleCase
         |> String.join "_"
@@ -149,7 +149,7 @@ renderImports currentPackagePath currentModulePath importNamespacePaths =
             (\( packagePath, modulePath ) ->
                 concat
                     [ "import { "
-                    , nameSpaceNameFromPackageAndModule packagePath modulePath
+                    , namespaceNameFromPackageAndModule packagePath modulePath
                     , " } from \""
                     , filePathPrefix ++ "/"
                     , ( packagePath, modulePath ) |> filePathFromTop
@@ -310,7 +310,7 @@ mapTypeExp opt typeExp =
             "\"" ++ stringval ++ "\""
 
         NamespaceRef namespacePath ->
-            nameSpaceNameFromPackageAndModule namespacePath.packagePath namespacePath.modulePath
+            namespaceNameFromPackageAndModule namespacePath.packagePath namespacePath.modulePath
 
         Number ->
             "number"
@@ -342,7 +342,7 @@ mapTypeExp opt typeExp =
 
                         ( packagePath, modulePath, localName ) ->
                             concat
-                                [ nameSpaceNameFromPackageAndModule packagePath modulePath
+                                [ namespaceNameFromPackageAndModule packagePath modulePath
                                 , "."
                                 , localName |> Name.toTitleCase
                                 ]
