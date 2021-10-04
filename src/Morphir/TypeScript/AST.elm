@@ -37,7 +37,13 @@ type Privacy
     | Private
 
 
-{-| Represents the path to a module nameSpace, for creating import statements or references
+{-| Represents the path to a module. Used in various ways to produce either a path
+to a module file, or a reference to that module's namespace. (eg in imports)
+
+This has two components, the package path and the module path.
+(Note: this is different from a Morphir Fully Qualified Name, which has three
+components: package path, module path AND a local name).
+
 -}
 type alias NamespacePath =
     { packagePath : Path
