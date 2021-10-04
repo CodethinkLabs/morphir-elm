@@ -1,6 +1,7 @@
 module Morphir.TypeScript.NamespaceMerger exposing (mergeNamespaces)
 
-{-| This module contains the TypeScript backend that translates the Morphir IR into TypeScript.
+{-| The mergeNamespaces function takes a list of TypeDefs, and returns an
+equivalent list where Namespaces that have the same name will be merged together.
 -}
 
 import Morphir.TypeScript.AST exposing (Privacy(..), TypeDef(..))
