@@ -71,8 +71,8 @@ collectRefsFromTypeDef typeDef =
                 , interface.fields |> List.concatMap (\( _, typeExp ) -> collectRefsFromTypeExpression typeExp)
                 ]
 
-        ImportStatement importstatement ->
-            importstatement.typeExpression |> collectRefsFromTypeExpression
+        ImportAlias importAlias ->
+            importAlias.typeExpression |> collectRefsFromTypeExpression
 
 
 collectRefsFromTypeExpression : TypeExp -> List NamespacePath
@@ -262,7 +262,7 @@ mapTypeDef opt typeDef =
                 , mapObjectExp opt fields
                 ]
 
-        ImportStatement { name, privacy, typeExpression } ->
+        ImportAlias { name, privacy, typeExpression } ->
             concat
                 [ privacy |> exportIfPublic
                 , "import "

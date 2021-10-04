@@ -111,8 +111,8 @@ mapModuleNamespacesForTopLevelFile packagePath packageDef =
 
                     lastName :: restOfPath ->
                         let
-                            importStatement =
-                                TS.ImportStatement
+                            importAlias =
+                                TS.ImportAlias
                                     { name = lastName
                                     , privacy = privacy
                                     , typeExpression = TS.NamespaceRef namespacePath
@@ -126,7 +126,7 @@ mapModuleNamespacesForTopLevelFile packagePath packageDef =
                                     , content = List.singleton state
                                     }
                         in
-                        [ List.foldl step importStatement restOfPath ]
+                        [ List.foldl step importAlias restOfPath ]
             )
         |> mergeNamespaces
 

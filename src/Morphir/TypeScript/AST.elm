@@ -79,7 +79,7 @@ type TypeDef
         , variables : List TypeExp
         , fields : ObjectExp
         }
-    | ImportStatement
+    | ImportAlias
         { name : Name
         , privacy : Privacy
         , typeExpression : TypeExp
