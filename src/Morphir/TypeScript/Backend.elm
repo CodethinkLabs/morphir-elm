@@ -45,10 +45,18 @@ mapDistribution opt distro =
             mapPackageDefinition opt distro packagePath packageDef
 
 
+{-| Represents one element of a FileMap,
+ie the file path and the contents of file that needs to be created in the backend output.
+The structure is ( (directoryPath, Filename), fileContent)
+-}
+type alias FileMapElement =
+    ( ( List String, String ), String )
+
+
 mapPackageDefinition : Options -> Distribution -> Package.PackageName -> Package.Definition ta (Type ()) -> FileMap
 mapPackageDefinition opt distribution packagePath packageDef =
     let
-        compilationUnitToFileMapElement : TS.CompilationUnit -> ( ( List String, String ), String )
+        compilationUnitToFileMapElement : TS.CompilationUnit -> FileMapElement
         compilationUnitToFileMapElement compilationUnit =
             let
                 fileContent =
@@ -57,7 +65,7 @@ mapPackageDefinition opt distribution packagePath packageDef =
             in
             ( ( compilationUnit.dirPath, compilationUnit.fileName ), fileContent )
 
-        individualModuleFiles : List ( ( List String, String ), String )
+        individualModuleFiles : List FileMapElement
         individualModuleFiles =
             packageDef.modules
                 |> Dict.toList
@@ -85,7 +93,7 @@ mapPackageDefinition opt distribution packagePath packageDef =
             , typeDefs = mapModuleNamespacesForTopLevelFile packagePath packageDef
             }
 
-        topLevelNamespaceModuleFile : List ( ( List String, String ), String )
+        topLevelNamespaceModuleFile : List FileMapElement
         topLevelNamespaceModuleFile =
             [ compilationUnitToFileMapElement topLevelCompilationUnit ]
     in
