@@ -11,6 +11,6 @@
         "IR.Value",
         "IR.Module",
         "IR.Package",
-	"IR.Distribution"
+        "IR.Distribution"
     ]
 }
