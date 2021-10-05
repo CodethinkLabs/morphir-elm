@@ -4,105 +4,66 @@ module Morphir.TypeScript.NamespaceMerger exposing (mergeNamespaces)
 equivalent list where Namespaces that have the same name will be merged together.
 -}
 
+import Morphir.IR.Name exposing (Name)
 import Morphir.TypeScript.AST exposing (Privacy(..), TypeDef(..))
 
 
 mergeNamespaces : List TypeDef -> List TypeDef
 mergeNamespaces inputList =
     let
-        isNamespace : TypeDef -> Bool
-        isNamespace typeDef =
-            case typeDef of
-                Namespace _ ->
-                    True
+        {--Considers a TypeDef (needle) and a list of TypeDefs (haystack). Returns true
+        if the needle is a Namespace, and the haystack contains another Namespace with
+        the same name as the needle. Returns False otherwise --}
+        hasMatch : TypeDef -> List TypeDef -> Bool
+        hasMatch needle haystack =
+            haystack
+                |> List.any
+                    (\candidate ->
+                        case ( needle, candidate ) of
+                            ( Namespace ns1, Namespace ns2 ) ->
+                                ns1.name == ns2.name
 
-                _ ->
-                    False
+                            _ ->
+                                False
+                    )
 
-        nonNamespaces : List TypeDef
-        nonNamespaces =
-            inputList |> List.filter (isNamespace >> not)
+        {--Given two typedefs that are both NameSpaces, will merge them together if
+        they have the same name. If they have different names or are not both namespaces,
+        then the function simply outputs the second TypeDef
+        --}
+        conditionallyMergeTwoNamespaces : TypeDef -> TypeDef -> TypeDef
+        conditionallyMergeTwoNamespaces td1 td2 =
+            case ( td1, td2 ) of
+                ( Namespace ns1, Namespace ns2 ) ->
+                    if ns1.name == ns2.name then
+                        Namespace
+                            { name = ns2.name
+                            , privacy =
+                                if (ns1.privacy == Public) || (ns2.privacy == Public) then
+                                    Public
 
-        originalNamespaces : List TypeDef
-        originalNamespaces =
-            inputList |> List.filter isNamespace
-
-        hasMatchInList : List TypeDef -> TypeDef -> Bool
-        hasMatchInList typeDefList typedef =
-            case typedef of
-                Namespace first ->
-                    typeDefList
-                        |> List.any
-                            (\secondType ->
-                                case secondType of
-                                    Namespace second ->
-                                        second.name == first.name
-
-                                    _ ->
-                                        False
-                            )
-
-                _ ->
-                    False
-
-        emptyListOfNamespaces : List TypeDef
-        emptyListOfNamespaces =
-            []
-
-        insertNamespaceIntoList : TypeDef -> List TypeDef -> List TypeDef
-        insertNamespaceIntoList insertDef listTypeDef =
-            case insertDef of
-                Namespace joinThisTo ->
-                    if hasMatchInList listTypeDef insertDef then
-                        listTypeDef
-                            |> List.map
-                                (\targetDef ->
-                                    case targetDef of
-                                        Namespace joinToThis ->
-                                            if joinThisTo.name == joinToThis.name then
-                                                let
-                                                    joinedPrivacy : Privacy
-                                                    joinedPrivacy =
-                                                        if
-                                                            (joinThisTo.privacy == Public)
-                                                                || (joinToThis.privacy == Public)
-                                                        then
-                                                            Public
-
-                                                        else
-                                                            Private
-                                                in
-                                                Namespace
-                                                    { name = joinThisTo.name
-                                                    , privacy = joinedPrivacy
-                                                    , content =
-                                                        joinThisTo.content ++ joinToThis.content
-                                                    }
-
-                                            else
-                                                targetDef
-
-                                        _ ->
-                                            targetDef
-                                )
+                                else
+                                    Private
+                            , content = (ns2.content ++ ns1.content) |> mergeNamespaces
+                            }
 
                     else
-                        insertDef :: listTypeDef
+                        td2
 
                 _ ->
-                    insertDef :: listTypeDef
-    in
-    List.concat
-        [ nonNamespaces
-        , originalNamespaces
-            |> List.foldr insertNamespaceIntoList emptyListOfNamespaces
-            |> List.map
-                (\typeDef ->
-                    case typeDef of
-                        Namespace namespace ->
-                            Namespace { namespace | content = mergeNamespaces namespace.content }
+                    td2
 
-                        _ ->
-                            typeDef
-                )
-        ]
+        {--Inserts a new typeDef into a list of TypeDefs
+        If the new typeDef is a namespace, with the same name as an existing namespace
+        that is in the list, then the two namespaces will be merged. Otherwise the new
+        TypeDef is just appended to the list, --}
+        insertNamespaceIntoList : TypeDef -> List TypeDef -> List TypeDef
+        insertNamespaceIntoList typeDef targetList =
+            case ( typeDef, hasMatch typeDef targetList ) of
+                ( Namespace _, True ) ->
+                    targetList |> List.map (conditionallyMergeTwoNamespaces typeDef)
+
+                _ ->
+                    targetList ++ [ typeDef ]
+    in
+    inputList |> List.foldl insertNamespaceIntoList []
