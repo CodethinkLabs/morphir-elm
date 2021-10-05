@@ -1,6 +1,6 @@
 module Morphir.TypeScript.PrettyPrinter exposing
     ( Options, mapCompilationUnit, mapTypeDef, mapTypeExp
-    , collectRefsFromTypeDef, filterUnique, getTypeScriptPackagePathAndModuleName, mapObjectExp
+    , getTypeScriptPackagePathAndModuleName, mapObjectExp
     )
 
 {-| This module contains a pretty-printer that takes a TypeScript AST as an input and returns a formatted text
@@ -26,13 +26,6 @@ type alias Options =
     }
 
 
-namespaceNameFromPackageAndModule : Path -> Path -> String
-namespaceNameFromPackageAndModule packagePath modulePath =
-    (packagePath ++ modulePath)
-        |> List.map Name.toTitleCase
-        |> String.join "_"
-
-
 {-| -}
 mapCompilationUnit : Options -> CompilationUnit -> Doc
 mapCompilationUnit opt cu =
@@ -50,53 +43,6 @@ mapCompilationUnit opt cu =
                     |> List.map (\mappedTypeDef -> mappedTypeDef ++ newLine ++ newLine)
                     |> String.join newLine
                 ]
-
-
-collectRefsFromTypeDef : TypeDef -> List NamespacePath
-collectRefsFromTypeDef typeDef =
-    case typeDef of
-        Namespace namespace ->
-            namespace.content |> List.concatMap collectRefsFromTypeDef
-
-        TypeAlias typeAlias ->
-            List.concat
-                [ typeAlias.variables |> List.concatMap collectRefsFromTypeExpression
-                , typeAlias.typeExpression |> collectRefsFromTypeExpression
-                ]
-
-        Interface interface ->
-            List.concat
-                [ interface.variables |> List.concatMap collectRefsFromTypeExpression
-                , interface.fields |> List.concatMap (\( _, typeExp ) -> collectRefsFromTypeExpression typeExp)
-                ]
-
-        ImportAlias importAlias ->
-            [ importAlias.namespacePath ]
-
-
-collectRefsFromTypeExpression : TypeExp -> List NamespacePath
-collectRefsFromTypeExpression typeExp =
-    case typeExp of
-        List subTypeExp ->
-            subTypeExp |> collectRefsFromTypeExpression
-
-        Tuple subTypeExpList ->
-            subTypeExpList |> List.concatMap collectRefsFromTypeExpression
-
-        Union subTypeExpList ->
-            subTypeExpList |> List.concatMap collectRefsFromTypeExpression
-
-        Object fieldList ->
-            fieldList |> List.concatMap (\( _, subTypeExp ) -> collectRefsFromTypeExpression subTypeExp)
-
-        TypeRef ( packagePath, modulePath, _ ) subTypeExpList ->
-            List.concat
-                [ [ ( packagePath, modulePath ) ]
-                , subTypeExpList |> List.concatMap collectRefsFromTypeExpression
-                ]
-
-        _ ->
-            []
 
 
 renderImports : List String -> List NamespacePath -> List String
@@ -132,20 +78,6 @@ renderImports dirPath importNamespacePaths =
                     , "\""
                     ]
             )
-
-
-filterUnique : List a -> List a
-filterUnique inputList =
-    let
-        incrementalFilterUnique : a -> List a -> List a
-        incrementalFilterUnique element shorterList =
-            if List.member element shorterList then
-                shorterList
-
-            else
-                element :: shorterList
-    in
-    List.foldr incrementalFilterUnique [] inputList
 
 
 {-| Extracts a directory path (as a sequence of folder name string) and a Module filename (as a
@@ -337,3 +269,10 @@ mapTypeExp opt typeExp =
                 , tpe
                 , " */"
                 ]
+
+
+namespaceNameFromPackageAndModule : Path -> Path -> String
+namespaceNameFromPackageAndModule packagePath modulePath =
+    (packagePath ++ modulePath)
+        |> List.map Name.toTitleCase
+        |> String.join "_"
