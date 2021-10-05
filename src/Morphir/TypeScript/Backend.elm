@@ -311,7 +311,7 @@ mapTypeExp tpe =
                 (fieldList
                     |> List.map
                         (\field ->
-                            ( field.name |> Name.toTitleCase, mapTypeExp field.tpe )
+                            ( field.name |> Name.toCamelCase, mapTypeExp field.tpe )
                         )
                 )
 
