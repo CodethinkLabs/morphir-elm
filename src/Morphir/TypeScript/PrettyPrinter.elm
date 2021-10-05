@@ -16,7 +16,7 @@ import Morphir.File.SourceCode exposing (Doc, concat, empty, indentLines, newLin
 import Morphir.IR.FQName as FQName exposing (FQName, fQName, getModulePath)
 import Morphir.IR.Name as Name exposing (Name)
 import Morphir.IR.Path as Path exposing (Path)
-import Morphir.TypeScript.AST exposing (CompilationUnit, NamespacePath, ObjectExp, Privacy(..), TypeDef(..), TypeExp(..), namespacePath)
+import Morphir.TypeScript.AST exposing (CompilationUnit, NamespacePath, ObjectExp, Privacy(..), TypeDef(..), TypeExp(..))
 
 
 {-| Formatting options.
@@ -92,7 +92,7 @@ collectRefsFromTypeExpression typeExp =
 
         TypeRef ( packagePath, modulePath, _ ) subTypeExpList ->
             List.concat
-                [ [ namespacePath packagePath modulePath ]
+                [ [ ( packagePath, modulePath ) ]
                 , subTypeExpList |> List.concatMap collectRefsFromTypeExpression
                 ]
 
@@ -104,7 +104,7 @@ renderImports : Path -> Path -> List NamespacePath -> List String
 renderImports currentPackagePath currentModulePath importNamespacePaths =
     let
         isFromCurrentModule : NamespacePath -> Bool
-        isFromCurrentModule { packagePath, modulePath } =
+        isFromCurrentModule ( packagePath, modulePath ) =
             (packagePath == currentPackagePath && modulePath == currentModulePath)
                 || (packagePath == [] && modulePath == [])
 
@@ -112,7 +112,6 @@ renderImports currentPackagePath currentModulePath importNamespacePaths =
         uniqueNames =
             importNamespacePaths
                 |> List.filter (isFromCurrentModule >> not)
-                |> List.map (\namespacePath -> ( namespacePath.packagePath, namespacePath.modulePath ))
                 |> List.sort
                 |> filterUnique
 
@@ -265,7 +264,7 @@ mapTypeDef opt typeDef =
                 , "import "
                 , name |> Name.toTitleCase
                 , " = "
-                , namespaceNameFromPackageAndModule namespacePath.packagePath namespacePath.modulePath
+                , namespaceNameFromPackageAndModule (Tuple.first namespacePath) (Tuple.second namespacePath)
                 ]
 
 

@@ -19,7 +19,7 @@ import Morphir.IR.Name as Name exposing (Name)
 import Morphir.IR.Package as Package
 import Morphir.IR.Path as Path exposing (Path)
 import Morphir.IR.Type as Type exposing (Type)
-import Morphir.TypeScript.AST as TS exposing (namespacePath)
+import Morphir.TypeScript.AST as TS
 import Morphir.TypeScript.NamespaceMerger exposing (mergeNamespaces)
 import Morphir.TypeScript.PrettyPrinter as PrettyPrinter exposing (getTypeScriptPackagePathAndModuleName)
 
@@ -110,12 +110,12 @@ mapModuleNamespacesForTopLevelFile packagePath packageDef =
         |> List.map
             (\( modulePath, moduleImpl ) ->
                 ( moduleImpl.access |> mapPrivacy
-                , TS.namespacePath packagePath modulePath
+                , modulePath
                 )
             )
         |> List.concatMap
-            (\( privacy, namespacePath ) ->
-                case namespacePath.packagePath ++ namespacePath.modulePath |> List.reverse of
+            (\( privacy, modulePath ) ->
+                case packagePath ++ modulePath |> List.reverse of
                     [] ->
                         []
 
@@ -125,7 +125,7 @@ mapModuleNamespacesForTopLevelFile packagePath packageDef =
                                 TS.ImportAlias
                                     { name = lastName
                                     , privacy = privacy
-                                    , namespacePath = namespacePath
+                                    , namespacePath = ( packagePath, modulePath )
                                     }
 
                             step : Name -> TS.TypeDef -> TS.TypeDef

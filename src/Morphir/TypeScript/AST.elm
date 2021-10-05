@@ -1,6 +1,6 @@
 module Morphir.TypeScript.AST exposing
     ( TypeDef(..), TypeExp(..)
-    , CompilationUnit, NamespacePath, ObjectExp, Privacy(..), namespacePath
+    , CompilationUnit, NamespacePath, ObjectExp, Privacy(..)
     )
 
 {-| This module contains the TypeScript AST (Abstract Syntax Tree). The purpose of this AST is to make it easier to
@@ -37,7 +37,9 @@ type Privacy
     | Private
 
 
-{-| Represents the path to a module. Used in various ways to produce either a path
+{-| (packagePath, modulePath).
+
+Represents the path to a module. Used in various ways to produce either a path
 to a module file, or a reference to that module's namespace. (eg in imports)
 
 This has two components, the package path and the module path.
@@ -46,16 +48,7 @@ components: package path, module path AND a local name).
 
 -}
 type alias NamespacePath =
-    { packagePath : Path
-    , modulePath : Path
-    }
-
-
-namespacePath : Path -> Path -> NamespacePath
-namespacePath packagePath modulePath =
-    { packagePath = packagePath
-    , modulePath = modulePath
-    }
+    ( Path, Path )
 
 
 {-| Represents a type definition.
