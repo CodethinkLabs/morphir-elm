@@ -21,7 +21,7 @@ import Morphir.IR.Path as Path exposing (Path)
 import Morphir.IR.Type as Type exposing (Type)
 import Morphir.TypeScript.AST as TS
 import Morphir.TypeScript.NamespaceMerger exposing (mergeNamespaces)
-import Morphir.TypeScript.PrettyPrinter as PrettyPrinter exposing (getTypeScriptPackagePathAndModuleName)
+import Morphir.TypeScript.PrettyPrinter as PrettyPrinter exposing (collectRefsFromTypeDef, filterUnique, getTypeScriptPackagePathAndModuleName)
 
 
 standardPrettyPrinterOptions : PrettyPrinter.Options
@@ -94,12 +94,15 @@ mapTopLevelNamespaceModule packagePath packageDef =
 
                 _ ->
                     ".ts"
+
+        typeDefs : List TS.TypeDef
+        typeDefs =
+            mapModuleNamespacesForTopLevelFile packagePath packageDef
     in
     { dirPath = []
     , fileName = topLevelPackageName
-    , packagePath = []
-    , modulePath = []
-    , typeDefs = mapModuleNamespacesForTopLevelFile packagePath packageDef
+    , imports = typeDefs |> List.concatMap (getUniqueImportRefs [] [])
+    , typeDefs = typeDefs
     }
 
 
@@ -136,9 +139,25 @@ mapModuleNamespacesForTopLevelFile packagePath packageDef =
                                     , content = List.singleton state
                                     }
                         in
-                        [ List.foldl step importAlias restOfPath ]
+                        [ restOfPath |> List.foldl step importAlias ]
             )
         |> mergeNamespaces
+
+
+getUniqueImportRefs : Path -> Path -> TS.TypeDef -> List TS.NamespacePath
+getUniqueImportRefs currentPackagePath currentModulePath typeDef =
+    typeDef
+        |> collectRefsFromTypeDef
+        |> List.filter
+            (\( packagePath, modulePath ) ->
+                packagePath /= currentPackagePath || modulePath /= currentModulePath
+            )
+        |> List.filter
+            (\( packagePath, modulePath ) ->
+                packagePath /= [] || modulePath /= []
+            )
+        |> List.sort
+        |> filterUnique
 
 
 mapModuleDefinition : Options -> Distribution -> Package.PackageName -> Path -> AccessControlled (Module.Definition ta (Type ())) -> List TS.CompilationUnit
@@ -165,12 +184,14 @@ mapModuleDefinition opt distribution currentPackagePath currentModulePath access
                 , content = typeDefs
                 }
 
+        {--Collect refernces from inside the module,
+        filter out references to current module
+        then sort references and get a list of unique references-}
         moduleUnit : TS.CompilationUnit
         moduleUnit =
             { dirPath = typeScriptPackagePath
             , fileName = (moduleName |> Name.toTitleCase) ++ ".ts"
-            , packagePath = currentPackagePath
-            , modulePath = currentModulePath
+            , imports = namespace |> getUniqueImportRefs currentPackagePath currentModulePath
             , typeDefs = List.singleton namespace
             }
     in

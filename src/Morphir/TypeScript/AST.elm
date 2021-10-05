@@ -24,8 +24,7 @@ import Morphir.IR.Path exposing (Path)
 type alias CompilationUnit =
     { dirPath : List String
     , fileName : String
-    , packagePath : Path
-    , modulePath : Path
+    , imports : List NamespacePath
     , typeDefs : List TypeDef
     }
 
