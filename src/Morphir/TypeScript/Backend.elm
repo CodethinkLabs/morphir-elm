@@ -8,24 +8,22 @@ module Morphir.TypeScript.Backend exposing
 
 import Dict
 import Morphir.File.FileMap exposing (FileMap)
-import Morphir.File.SourceCode exposing (newLine)
 import Morphir.IR.AccessControlled exposing (Access(..), AccessControlled)
 import Morphir.IR.Distribution as Distribution exposing (Distribution(..))
-import Morphir.IR.Documented exposing (Documented)
-import Morphir.IR.FQName as FQName exposing (FQName)
 import Morphir.IR.Module as Module
-import Morphir.IR.Name as Name exposing (Name)
+import Morphir.IR.Name as Name
 import Morphir.IR.Package as Package
 import Morphir.IR.Path as Path exposing (Path)
-import Morphir.IR.Type as Type exposing (Type)
+import Morphir.IR.Type exposing (Type)
 import Morphir.TypeScript.AST as TS
 import Morphir.TypeScript.Backend.ImportRefs exposing (getUniqueImportRefs)
 import Morphir.TypeScript.Backend.MapTopLevelNamespace exposing (mapTopLevelNamespaceModule)
-import Morphir.TypeScript.Backend.MapTypes exposing (mapPrivacy, mapTypeDefinition)
+import Morphir.TypeScript.Backend.MapTypes exposing (mapTypeDefinition)
 import Morphir.TypeScript.PrettyPrinter as PrettyPrinter exposing (getTypeScriptPackagePathAndModuleName)
+import Morphir.TypeScript.PrettyPrinter.MapExpressions as MapExpressions
 
 
-standardPrettyPrinterOptions : PrettyPrinter.Options
+standardPrettyPrinterOptions : MapExpressions.Options
 standardPrettyPrinterOptions =
     { indentDepth = 2 }
 
