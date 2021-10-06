@@ -19,8 +19,9 @@ import Morphir.IR.Package as Package
 import Morphir.IR.Path as Path exposing (Path)
 import Morphir.IR.Type as Type exposing (Type)
 import Morphir.TypeScript.AST as TS
+import Morphir.TypeScript.Backend.ImportRefs exposing (getUniqueImportRefs)
+import Morphir.TypeScript.Backend.MapTopLevelNamespace exposing (mapTopLevelNamespaceModule)
 import Morphir.TypeScript.Backend.MapTypes exposing (mapPrivacy, mapTypeDefinition)
-import Morphir.TypeScript.NamespaceMerger exposing (mergeNamespaces)
 import Morphir.TypeScript.PrettyPrinter as PrettyPrinter exposing (getTypeScriptPackagePathAndModuleName)
 
 
@@ -83,67 +84,6 @@ mapPackageDefinition opt distribution packagePath packageDef =
         |> Dict.fromList
 
 
-mapTopLevelNamespaceModule : Package.PackageName -> Package.Definition ta (Type ()) -> TS.CompilationUnit
-mapTopLevelNamespaceModule packagePath packageDef =
-    let
-        topLevelPackageName : String
-        topLevelPackageName =
-            case packagePath of
-                firstName :: _ ->
-                    (firstName |> Name.toTitleCase) ++ ".ts"
-
-                _ ->
-                    ".ts"
-
-        typeDefs : List TS.TypeDef
-        typeDefs =
-            mapModuleNamespacesForTopLevelFile packagePath packageDef
-    in
-    { dirPath = []
-    , fileName = topLevelPackageName
-    , imports = typeDefs |> List.concatMap (getUniqueImportRefs [] [])
-    , typeDefs = typeDefs
-    }
-
-
-mapModuleNamespacesForTopLevelFile : Package.PackageName -> Package.Definition ta (Type ()) -> List TS.TypeDef
-mapModuleNamespacesForTopLevelFile packagePath packageDef =
-    packageDef.modules
-        |> Dict.toList
-        |> List.map
-            (\( modulePath, moduleImpl ) ->
-                ( moduleImpl.access |> mapPrivacy
-                , modulePath
-                )
-            )
-        |> List.concatMap
-            (\( privacy, modulePath ) ->
-                case packagePath ++ modulePath |> List.reverse of
-                    [] ->
-                        []
-
-                    lastName :: restOfPath ->
-                        let
-                            importAlias =
-                                TS.ImportAlias
-                                    { name = lastName
-                                    , privacy = privacy
-                                    , namespacePath = ( packagePath, modulePath )
-                                    }
-
-                            step : Name -> TS.TypeDef -> TS.TypeDef
-                            step name state =
-                                TS.Namespace
-                                    { name = name
-                                    , privacy = privacy
-                                    , content = List.singleton state
-                                    }
-                        in
-                        [ restOfPath |> List.foldl step importAlias ]
-            )
-        |> mergeNamespaces
-
-
 mapModuleDefinition : Options -> Distribution -> Package.PackageName -> Path -> AccessControlled (Module.Definition ta (Type ())) -> List TS.CompilationUnit
 mapModuleDefinition opt distribution currentPackagePath currentModulePath accessControlledModuleDef =
     let
@@ -180,80 +120,3 @@ mapModuleDefinition opt distribution currentPackagePath currentModulePath access
             }
     in
     [ moduleUnit ]
-
-
-getUniqueImportRefs : Path -> Path -> TS.TypeDef -> List TS.NamespacePath
-getUniqueImportRefs currentPackagePath currentModulePath typeDef =
-    typeDef
-        |> collectRefsFromTypeDef
-        |> List.filter
-            (\( packagePath, modulePath ) ->
-                packagePath /= currentPackagePath || modulePath /= currentModulePath
-            )
-        |> List.filter
-            (\( packagePath, modulePath ) ->
-                packagePath /= [] || modulePath /= []
-            )
-        |> List.sort
-        |> filterUnique
-
-
-filterUnique : List a -> List a
-filterUnique inputList =
-    let
-        incrementalFilterUnique : a -> List a -> List a
-        incrementalFilterUnique element shorterList =
-            if List.member element shorterList then
-                shorterList
-
-            else
-                element :: shorterList
-    in
-    List.foldr incrementalFilterUnique [] inputList
-
-
-collectRefsFromTypeDef : TS.TypeDef -> List TS.NamespacePath
-collectRefsFromTypeDef typeDef =
-    case typeDef of
-        TS.Namespace namespace ->
-            namespace.content |> List.concatMap collectRefsFromTypeDef
-
-        TS.TypeAlias typeAlias ->
-            List.concat
-                [ typeAlias.variables |> List.concatMap collectRefsFromTypeExpression
-                , typeAlias.typeExpression |> collectRefsFromTypeExpression
-                ]
-
-        TS.Interface interface ->
-            List.concat
-                [ interface.variables |> List.concatMap collectRefsFromTypeExpression
-                , interface.fields |> List.concatMap (\( _, typeExp ) -> collectRefsFromTypeExpression typeExp)
-                ]
-
-        TS.ImportAlias importAlias ->
-            [ importAlias.namespacePath ]
-
-
-collectRefsFromTypeExpression : TS.TypeExp -> List TS.NamespacePath
-collectRefsFromTypeExpression typeExp =
-    case typeExp of
-        TS.List subTypeExp ->
-            subTypeExp |> collectRefsFromTypeExpression
-
-        TS.Tuple subTypeExpList ->
-            subTypeExpList |> List.concatMap collectRefsFromTypeExpression
-
-        TS.Union subTypeExpList ->
-            subTypeExpList |> List.concatMap collectRefsFromTypeExpression
-
-        TS.Object fieldList ->
-            fieldList |> List.concatMap (\( _, subTypeExp ) -> collectRefsFromTypeExpression subTypeExp)
-
-        TS.TypeRef ( packagePath, modulePath, _ ) subTypeExpList ->
-            List.concat
-                [ [ ( packagePath, modulePath ) ]
-                , subTypeExpList |> List.concatMap collectRefsFromTypeExpression
-                ]
-
-        _ ->
-            []
