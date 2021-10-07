@@ -11,6 +11,7 @@ representation.
 -}
 
 import Morphir.File.SourceCode exposing (Doc, concat, indentLines, newLine)
+import Morphir.IR.FQName as FQName
 import Morphir.IR.Name as Name exposing (Name)
 import Morphir.IR.Path exposing (Path)
 import Morphir.TypeScript.AST exposing (CompilationUnit, NamespacePath, Privacy(..), TypeDef(..), TypeExp(..))
@@ -34,6 +35,50 @@ mapCompilationUnit opt cu =
                     |> List.map (\mappedTypeDef -> mappedTypeDef ++ newLine ++ newLine)
                     |> String.join newLine
                 ]
+
+
+createDecoderBoolean : Name -> String
+createDecoderBoolean name =
+    "const decode" ++ (Name.toTitleCase name) ++ " = decodeBoolean;"
+
+
+createDecoderUnion : Name -> List TypeExp -> String
+createDecoderUnion name fields =
+    let
+        nameString = (Name.toTitleCase name)
+        decodeField = (\field ->
+            case field of
+                TypeRef fQName contents ->
+                    [ "    if (input == '" ++ (fQName |> FQName.getLocalName |> Name.toSnakeCase) ++ "') {"
+                    , "        return " ++ (fQName |> FQName.getLocalName |> Name.toTitleCase) ++ ";"
+                    , "    }"
+                    ]
+                _ ->
+                    [ "// Error!!! expected typeref" ]
+            )
+        lines =
+            [ "function decode" ++ nameString ++ "(input: any): " ++ nameString ++ " {" ] ++
+            (fields |> List.concatMap decodeField) ++
+            [ "}" ]
+    in
+        String.join newLine lines
+
+
+createDecoder : TypeDef -> String
+createDecoder typeDef =
+    case typeDef of
+        TypeAlias { name, variables, typeExpression } ->
+            case typeExpression of
+                Boolean ->
+                    createDecoderBoolean name
+                Union fields ->
+                    createDecoderUnion name fields
+                _ ->
+                    "// No decoder for " ++ (Name.toTitleCase name)
+        Interface { name, variables, fields } ->
+            "// No decoder for " ++ (Name.toTitleCase name)
+        Namespace { } -> ""
+        ImportAlias { } -> ""
 
 
 renderImports : List String -> List NamespacePath -> List String
@@ -112,6 +157,11 @@ mapTypeDef opt typeDef =
                 , content
                     |> List.map (mapTypeDef opt)
                     |> List.map (\mappedTypeDef -> mappedTypeDef ++ newLine)
+                    |> indentLines opt.indentDepth
+                , newLine
+                , content
+                    |> List.map (createDecoder)
+                    |> List.map (\decoder -> decoder ++ newLine)
                     |> indentLines opt.indentDepth
                 , newLine ++ "}"
                 ]
