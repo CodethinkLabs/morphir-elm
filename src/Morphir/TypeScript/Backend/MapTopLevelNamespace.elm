@@ -5,7 +5,7 @@ import Morphir.IR.Name as Name exposing (Name)
 import Morphir.IR.Package as Package
 import Morphir.IR.Type exposing (Type)
 import Morphir.TypeScript.AST as TS
-import Morphir.TypeScript.Backend.ImportRefs exposing (getUniqueImportRefs)
+import Morphir.TypeScript.Backend.ImportRefs exposing (getUniqueImportRefs, renderInternalImport)
 import Morphir.TypeScript.Backend.MapTypes exposing (mapPrivacy)
 
 
@@ -27,7 +27,10 @@ mapTopLevelNamespaceModule packagePath packageDef =
     in
     { dirPath = []
     , fileName = topLevelPackageName
-    , imports = typeDefs |> List.concatMap (getUniqueImportRefs [] [])
+    , imports =
+        typeDefs
+            |> List.concatMap (getUniqueImportRefs [] [])
+            |> List.map (renderInternalImport [])
     , typeDefs = typeDefs
     }
 

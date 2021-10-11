@@ -13,6 +13,10 @@ import Morphir.IR.Type as Type
 import Morphir.TypeScript.AST as TS
 
 
+type alias TypeVariablesList =
+    List Name
+
+
 {-| Map a Morphir type definition into a list of TypeScript type definitions. The reason for returning a list is that
 some Morphir type definitions can only be represented by a combination of multiple type definitions in TypeScript.
 -}
@@ -33,6 +37,8 @@ mapTypeDefinition name typeDef =
                 , doc = doc
                 , variables = variables |> List.map Name.toCamelCase |> List.map (\var -> TS.Variable var)
                 , typeExpression = typeExp |> mapTypeExp
+                , decoder = Just (generateDecoderFunction variables name typeExp)
+                , encoder = Nothing
                 }
             ]
 
@@ -72,6 +78,8 @@ mapTypeDefinition name typeDef =
                                                     TS.TypeRef (FQName.fQName [] [] ctorName) tsVariables
                                                 )
                                         )
+                                , decoder = Nothing
+                                , encoder = Nothing
                                 }
                             )
             in
@@ -108,6 +116,8 @@ mapConstructor privacy variables ( ctorName, ctorArgs ) =
         , privacy = privacy
         , variables = variables
         , fields = kindField :: otherFields
+        , decoder = Nothing
+        , encoder = Nothing
         }
 
 
@@ -119,17 +129,23 @@ mapTypeExp tpe =
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "basics" ] ], [ "bool" ] ) [] ->
             TS.Boolean
 
-        Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "dict" ] ], [ "dict" ] ) [ dictKeyType, dictValType ] ->
-            TS.List (TS.Tuple [ mapTypeExp dictKeyType, mapTypeExp dictValType ])
-
-        Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "list" ] ], [ "list" ] ) [ listType ] ->
-            TS.List (mapTypeExp listType)
-
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "basics" ] ], [ "float" ] ) [] ->
             TS.Number
 
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "basics" ] ], [ "int" ] ) [] ->
             TS.Number
+
+        Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "char" ] ], [ "char" ] ) [] ->
+            TS.String
+
+        Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "string" ] ], [ "string" ] ) [] ->
+            TS.String
+
+        Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "dict" ] ], [ "dict" ] ) [ dictKeyType, dictValType ] ->
+            TS.List (TS.Tuple [ mapTypeExp dictKeyType, mapTypeExp dictValType ])
+
+        Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "list" ] ], [ "list" ] ) [ listType ] ->
+            TS.List (mapTypeExp listType)
 
         Type.Record _ fieldList ->
             TS.Object
@@ -139,12 +155,6 @@ mapTypeExp tpe =
                             ( field.name |> Name.toCamelCase, mapTypeExp field.tpe )
                         )
                 )
-
-        Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "char" ] ], [ "char" ] ) [] ->
-            TS.String
-
-        Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "string" ] ], [ "string" ] ) [] ->
-            TS.String
 
         Type.Tuple _ tupleTypesList ->
             TS.Tuple (List.map mapTypeExp tupleTypesList)
@@ -163,3 +173,133 @@ mapTypeExp tpe =
 
         Type.Function _ _ _ ->
             TS.UnhandledType "Function"
+
+
+genericCodec : String -> TS.Expression
+genericCodec function =
+    TS.MemberExpression
+        { object = TS.identifierFromString "codecs "
+        , member = TS.identifierFromString function
+        }
+
+
+arrayToMap : TS.Expression -> TS.Expression
+arrayToMap array =
+    TS.NewExpression
+        { constructor = "Map"
+        , arguments = [ array ]
+        }
+
+
+decoderExpression : TypeVariablesList -> Type.Type a -> TS.CallExpression
+decoderExpression typeVars typeExp =
+    case typeExp of
+        Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "basics" ] ], [ "bool" ] ) [] ->
+            { function = genericCodec "decodeBoolean", params = [] }
+
+        Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "basics" ] ], [ "float" ] ) [] ->
+            { function = genericCodec "decodeFloat", params = [] }
+
+        Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "basics" ] ], [ "int" ] ) [] ->
+            { function = genericCodec "decodeInt", params = [] }
+
+        Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "char" ] ], [ "char" ] ) [] ->
+            { function = genericCodec "decodeChar", params = [] }
+
+        Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "string" ] ], [ "string" ] ) [] ->
+            { function = genericCodec "decodeString", params = [] }
+
+        Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "dict" ] ], [ "dict" ] ) [ dictKeyType, dictValType ] ->
+            { function = genericCodec "decodeDict"
+            , params =
+                {--decodeKey --}
+                [ TS.Call (bindDecoderExpression typeVars dictKeyType)
+
+                {--decodeValue --}
+                , TS.Call (bindDecoderExpression typeVars dictValType)
+                ]
+            }
+
+        Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "list" ] ], [ "list" ] ) [ listType ] ->
+            { function = genericCodec "decodeList"
+            , params = [ TS.Call (bindDecoderExpression typeVars listType) ]
+            }
+
+        Type.Record _ fieldList ->
+            { function = genericCodec "decodeRecord"
+            , params =
+                {--fieldDecoders --}
+                [ (fieldList
+                    |> List.map
+                        (\field ->
+                            TS.ArrayLiteralExpression
+                                [ TS.StringLiteralExpression (Name.toCamelCase field.name)
+                                , TS.Call (bindDecoderExpression typeVars field.tpe)
+                                ]
+                        )
+                  )
+                    |> TS.ArrayLiteralExpression
+                    |> arrayToMap
+                ]
+            }
+
+        Type.Tuple _ tupleTypesList ->
+            { function = genericCodec "decodeTuple"
+            , params =
+                {--elementDecoders --}
+                [ TS.ArrayLiteralExpression
+                    (List.map (\item -> TS.Call (bindDecoderExpression typeVars item)) tupleTypesList)
+                ]
+            }
+
+        Type.Variable _ varName ->
+            { function =
+                TS.MemberExpression
+                    { object = TS.identifierFromString "varDecoders"
+                    , member = TS.Identifier varName
+                    }
+            , params = []
+            }
+
+        Type.Unit _ ->
+            { function = genericCodec "decodeUnit"
+            , params = []
+            }
+
+        {--Unhandled types are treated as Unit --}
+        _ ->
+            { function = genericCodec "decodeUnit"
+            , params = []
+            }
+
+
+bindDecoderExpression : TypeVariablesList -> Type.Type ta -> TS.CallExpression
+bindDecoderExpression variables typeExp =
+    let
+        expression =
+            decoderExpression variables typeExp
+    in
+    { function =
+        TS.MemberExpression
+            { object = expression.function
+            , member = TS.identifierFromString "bind"
+            }
+    , params = [ TS.NullLiteral ] ++ expression.params
+    }
+
+
+generateDecoderFunction : TypeVariablesList -> Name -> Type.Type ta -> TS.Statement
+generateDecoderFunction variables typeName typeExp =
+    let
+        call =
+            decoderExpression variables typeExp
+
+        addInputParameter : TS.CallExpression -> TS.CallExpression
+        addInputParameter oldcall =
+            { oldcall | params = call.params ++ [ TS.identifierFromString "input" ] }
+    in
+    TS.FunctionDeclaration
+        { name = [ "decode" ] ++ typeName
+        , parameters = List.map Name.fromString [ "varDecoders", "input" ]
+        , body = [ TS.ReturnStatement (call |> addInputParameter |> TS.Call) ]
+        }

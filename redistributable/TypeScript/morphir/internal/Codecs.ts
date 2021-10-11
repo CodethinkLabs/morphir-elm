@@ -66,18 +66,9 @@ export function decodeFloat(input: any): number {
     return input;
 }
 
-export function decodeArray<T>(decodeElement: (any) => T,
-                               input: any): Array<T> {
-    if (!(input instanceof Array)) {
-        throw new DecodeError(`Expected Array, got ${typeof(input)}`);
-    }
-
-    const inputArray: Array = input;
-    return inputArray.map(decodeElement);
-}
-
 export function decodeCustomType(kind: string,
-                                 mapDecoders: DecoderList,
+                                 argNames: Array<string>,
+                                 argDecoders: DecoderList,
                                  input: any): object {
     if (input[0].kind != kind) {
         throw new DecodeError(`Expected kind ${kind}, got ${input[0].kind}`);
@@ -88,13 +79,16 @@ export function decodeCustomType(kind: string,
         throw new DecodeError(`Expected ${argDecoders.length} args for custom type "${kind}", got ${argCount}`);
     }
 
-    result = {
+    var result = {
         kind: kind
     }
-    for (i = 0. i < argDecoders.length; i++) {
-        paramName = `arg${i + 1}`;
+
+    for (var i = 0; i < argDecoders.length; i++) {
+        var paramName = argNames[i];
         result[paramName] = argDecoders[i](input[i + 1]);
     }
+
+    return result;
 }
 
 // FIXME: dict are represented as arrays right now
@@ -102,7 +96,9 @@ export function decodeDict<K,V>(decodeKey: (any) => K, decodeValue: (any) => V, 
     if (!(input instanceof Array)) {
         throw new DecodeError(`Expected array, got ${typeof(input)}`);
     }
+
     const inputArray: Array<any> = input;
+
     return inputArray.map((item: any) => {
         if (!(item instanceof Array)) {
             throw new DecodeError(`Expected array, got ${typeof(item)}`);
@@ -113,7 +109,15 @@ export function decodeDict<K,V>(decodeKey: (any) => K, decodeValue: (any) => V, 
     });
 }
 
-type DecoderMap = Map<string, (any) => any>;
+export function decodeList<T>(decodeElement: (any) => T,
+                              input: any): Array<T> {
+    if (!(input instanceof Array)) {
+        throw new DecodeError(`Expected Array, got ${typeof(input)}`);
+    }
+
+    const inputArray: Array<any> = input;
+    return inputArray.map(decodeElement);
+}
 
 export function decodeRecord(fieldDecoders: DecoderMap, input: any): object {
     if (!(input instanceof Object)) {
@@ -145,9 +149,9 @@ export function decodeTuple(elementDecoders: DecoderList, input: any): Array<any
         throw new DecodeError(`Expected Array, got ${typeof(input)}`);
     }
 
-    const inputArray: Array = input;
+    const inputArray: Array<any> = input;
     let result = [];
-    for (i = 0; i < inputArray.length; i++) {
+    for (var i = 0; i < inputArray.length; i++) {
         result.push(elementDecoders[i](inputArray[i]));
     }
     return result;

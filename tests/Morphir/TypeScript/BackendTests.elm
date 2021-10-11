@@ -50,12 +50,16 @@ mapTypeDefinitionTests =
                                 [ TS.TypeRef (localFQName "Bar") []
                                 , TS.TypeRef (localFQName "Baz") []
                                 ])
+                            , decoder = Nothing
+                            , encoder = Nothing
                             }
                         , TS.Interface
                             { name = (Name.fromString "Bar")
                             , privacy = TS.Public
                             , variables = []
                             , fields = [ ( "kind", TS.LiteralString "Bar" ) ]
+                            , decoder = Nothing
+                            , encoder = Nothing
                             }
                         , TS.Interface
                             { name = (Name.fromString "Baz")
@@ -65,6 +69,8 @@ mapTypeDefinitionTests =
                                 [ ( "kind", TS.LiteralString "Baz" )
                                 , ( "myField", TS.String )
                                 ]
+                            , decoder = Nothing
+                            , encoder = Nothing
                             }
                         ]
             )
@@ -90,6 +96,8 @@ mapTypeDefinitionTests =
                             , privacy = TS.Public
                             , variables = []
                             , fields = [ ( "kind", TS.LiteralString "SameName" ) ]
+                            , decoder = Nothing
+                            , encoder = Nothing
                             }
                         ]
              )
