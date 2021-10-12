@@ -169,7 +169,7 @@ const testIntegration = series(
             ),
             series(
                 testIntegrationGenTypeScript,
-                //testIntegrationBuildTypeScript,
+                testIntegrationBuildTypeScript,
             ),
         )
     )
@@ -198,7 +198,7 @@ function testMorphirIRBuildTypeScript(cb) {
 testMorphirIR = series(
     testMorphirIRMake,
     testMorphirIRGenTypeScript,
-    //testMorphirIRBuildTypeScript,
+    testMorphirIRBuildTypeScript,
 )
 
 
