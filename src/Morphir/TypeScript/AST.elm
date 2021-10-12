@@ -1,6 +1,6 @@
 module Morphir.TypeScript.AST exposing
     ( TypeDef(..), TypeExp(..)
-    , CompilationUnit, NamespacePath, ObjectExp, Privacy(..)
+    , CallExpression, CompilationUnit, Expression(..), ImportDeclaration, NamespacePath, ObjectExp, Privacy(..), Statement(..), emptyObject, namespaceNameFromPackageAndModule
     )
 
 {-| This module contains the TypeScript AST (Abstract Syntax Tree). The purpose of this AST is to make it easier to
@@ -16,7 +16,7 @@ that we use in the backend.
 -}
 
 import Morphir.IR.FQName exposing (FQName)
-import Morphir.IR.Name exposing (Name)
+import Morphir.IR.Name as Name exposing (Name)
 import Morphir.IR.Path exposing (Path)
 
 
@@ -24,7 +24,7 @@ import Morphir.IR.Path exposing (Path)
 type alias CompilationUnit =
     { dirPath : List String
     , fileName : String
-    , imports : List NamespacePath
+    , imports : List ImportDeclaration
     , typeDefs : List TypeDef
     }
 
@@ -50,29 +50,82 @@ type alias NamespacePath =
     ( Path, Path )
 
 
+{-| Generate a unique identifier for the given namespace, for private use.
+-}
+namespaceNameFromPackageAndModule : Path -> Path -> String
+namespaceNameFromPackageAndModule packagePath modulePath =
+    (packagePath ++ modulePath)
+        |> List.map Name.toTitleCase
+        |> String.join "_"
+
+
+type alias CallExpression =
+    { function : Expression
+    , params : List Expression
+    }
+
+
+type Expression
+    = ArrayLiteralExpression (List Expression)
+    | Call CallExpression
+    | Identifier String
+    | MemberExpression
+        { object : Expression
+        , member : Expression
+        }
+    | NewExpression
+        { constructor : String
+        , arguments : List Expression
+        }
+    | NullLiteral
+    | ObjectLiteralExpression { properties : List ( String, Expression ) }
+    | StringLiteralExpression String
+
+
+emptyObject : Expression
+emptyObject =
+    ObjectLiteralExpression { properties = [] }
+
+
+type Statement
+    = FunctionDeclaration
+        { name : String
+        , parameters : List String
+        , body : List Statement
+        , privacy : Privacy
+        }
+    | LetStatement String Expression
+    | ExpressionStatement Expression
+    | ReturnStatement Expression
+
+
 {-| Represents a type definition.
 -}
 type TypeDef
     = Namespace
-        { name : Name
+        { name : String
         , privacy : Privacy
         , content : List TypeDef
         }
     | TypeAlias
-        { name : Name
+        { name : String
         , doc : String
         , privacy : Privacy
         , variables : List TypeExp
         , typeExpression : TypeExp
+        , decoder : Maybe Statement
+        , encoder : Maybe Statement
         }
     | Interface
-        { name : Name
+        { name : String
         , privacy : Privacy
         , variables : List TypeExp
         , fields : ObjectExp
+        , decoder : Maybe Statement
+        , encoder : Maybe Statement
         }
     | ImportAlias
-        { name : Name
+        { name : String
         , privacy : Privacy
         , namespacePath : NamespacePath
         }
@@ -105,3 +158,9 @@ type TypeExp
 -}
 type alias ObjectExp =
     List ( String, TypeExp )
+
+
+type alias ImportDeclaration =
+    { importClause : String
+    , moduleSpecifier : String
+    }

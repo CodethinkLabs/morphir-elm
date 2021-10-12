@@ -42,7 +42,7 @@ mapTypeDefinitionTests =
                     )
                     |> Expect.equal
                         [ TS.TypeAlias
-                            { name = (Name.fromString "MyFoo")
+                            { name = "MyFoo"
                             , doc = ""
                             , privacy = TS.Public
                             , variables = []
@@ -50,21 +50,27 @@ mapTypeDefinitionTests =
                                 [ TS.TypeRef (localFQName "Bar") []
                                 , TS.TypeRef (localFQName "Baz") []
                                 ])
+                            , decoder = Nothing
+                            , encoder = Nothing
                             }
                         , TS.Interface
-                            { name = (Name.fromString "Bar")
+                            { name = "Bar"
                             , privacy = TS.Public
                             , variables = []
                             , fields = [ ( "kind", TS.LiteralString "Bar" ) ]
+                            , decoder = Nothing
+                            , encoder = Nothing
                             }
                         , TS.Interface
-                            { name = (Name.fromString "Baz")
+                            { name = "Baz"
                             , privacy = TS.Public
                             , variables = []
                             , fields =
                                 [ ( "kind", TS.LiteralString "Baz" )
                                 , ( "myField", TS.String )
                                 ]
+                            , decoder = Nothing
+                            , encoder = Nothing
                             }
                         ]
             )
@@ -86,10 +92,12 @@ mapTypeDefinitionTests =
                     |> Expect.equal
                         {- There should be no TS.Union here, as the name would conflict with the TS.Interface -}
                         [ TS.Interface
-                            { name = Name.fromString "sameName"
+                            { name = "SameName"
                             , privacy = TS.Public
                             , variables = []
                             , fields = [ ( "kind", TS.LiteralString "SameName" ) ]
+                            , decoder = Nothing
+                            , encoder = Nothing
                             }
                         ]
              )

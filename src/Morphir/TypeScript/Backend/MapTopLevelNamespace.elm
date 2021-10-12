@@ -5,7 +5,7 @@ import Morphir.IR.Name as Name exposing (Name)
 import Morphir.IR.Package as Package
 import Morphir.IR.Type exposing (Type)
 import Morphir.TypeScript.AST as TS
-import Morphir.TypeScript.Backend.ImportRefs exposing (getUniqueImportRefs)
+import Morphir.TypeScript.Backend.ImportRefs exposing (getUniqueImportRefs, renderInternalImport)
 import Morphir.TypeScript.Backend.MapTypes exposing (mapPrivacy)
 
 
@@ -27,7 +27,10 @@ mapTopLevelNamespaceModule packagePath packageDef =
     in
     { dirPath = []
     , fileName = topLevelPackageName
-    , imports = typeDefs |> List.concatMap (getUniqueImportRefs [] [])
+    , imports =
+        typeDefs
+            |> List.concatMap (getUniqueImportRefs [] [])
+            |> List.map (renderInternalImport [])
     , typeDefs = typeDefs
     }
 
@@ -52,7 +55,7 @@ mapModuleNamespacesForTopLevelFile packagePath packageDef =
                         let
                             importAlias =
                                 TS.ImportAlias
-                                    { name = lastName
+                                    { name = lastName |> Name.toTitleCase
                                     , privacy = privacy
                                     , namespacePath = ( packagePath, modulePath )
                                     }
@@ -60,7 +63,7 @@ mapModuleNamespacesForTopLevelFile packagePath packageDef =
                             step : Name -> TS.TypeDef -> TS.TypeDef
                             step name state =
                                 TS.Namespace
-                                    { name = name
+                                    { name = name |> Name.toTitleCase
                                     , privacy = privacy
                                     , content = List.singleton state
                                     }
