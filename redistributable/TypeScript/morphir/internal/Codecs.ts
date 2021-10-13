@@ -21,8 +21,13 @@ Object.defineProperty(DecodeError.prototype, 'name', {
 });
 
 type GenericDecoder = (input: any) => any;
+type GenericEncoder = (input: any) => any;
+
 type DecoderList = Array<GenericDecoder>;
 type DecoderMap = Map<string, GenericDecoder>;
+
+type EncoderList = Array<GenericEncoder>;
+type EncoderMap = Map<string, GenericEncoder>;
 
 export function decodeUnit(input: any): [] {
     return [];
@@ -154,5 +159,71 @@ export function decodeTuple(elementDecoders: DecoderList, input: any): Array<any
     for (var i = 0; i < inputArray.length; i++) {
         result.push(elementDecoders[i](inputArray[i]));
     }
+    return result;
+}
+
+export function encodeUnit(value: []): [] {
+    return [];
+}
+
+export function encodeBoolean(value: boolean): boolean {
+    return value;
+}
+
+export function encodeChar(value: string): string {
+    return value;
+}
+
+export function encodeString(value: string): string {
+    return value;
+}
+
+export function encodeInt(value: number): number {
+    return value;
+}
+
+export function encodeFloat(value: number): number {
+    return value;
+}
+
+export function encodeCustomType(value: object,
+                                 argNames: Array<string>,
+                                 argEncoders: EncoderList): Array<any> {
+    var result = [value['kind']];
+    for (var i = 0; i < argNames.length; i++) {
+        const name = argNames[i];
+        result.push(argEncoders[i](value[name]));
+    };
+    return result;
+}
+
+export function encodeDict<K,V>(value: Map<K,V>,
+                                encodeKey: (any) => K,
+                                encodeValue: (any) => V): Array<[K,V]> {
+    return Array.from(value.entries(), (pair: [K,V]): [K,V] => {
+        return [encodeKey(pair[0]), encodeValue(pair[1])];
+    });
+}
+
+export function encodeList<T>(value: Array<T>,
+                              encodeElement: (any) => T) {
+    return value.map(encodeElement);
+}
+
+export function encodeRecord(value: object,
+                             fieldEncoders: EncoderMap): object {
+    let result = new Object;
+    fieldEncoders.forEach((encoder: GenericEncoder, name: string) => {
+        result[name] = encoder(value[name]);
+    });
+    return result;
+}
+
+export function encodeTuple(value: Array<any>,
+                            elementEncoders: EncoderList): Array<any> {
+    let result = new Array;
+    for (var i = 0; i < value.length; i++) {
+        result.push(elementEncoders[i](value[i]));
+    };
     return result;
 }
