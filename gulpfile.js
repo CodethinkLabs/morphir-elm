@@ -152,10 +152,8 @@ async function testIntegrationGenTypeScript(cb) {
 
 function testIntegrationBuildTypeScript(cb) {
     return src('tests-integration/generated/refModel/src/typescript/**/*.ts')
-        .pipe(ts({
-            outFile: 'output.js'
-        }))
-        .pipe(dest('tests-integration/generated/refModel/src/typescript/output.js'));
+        .pipe(ts({}))
+        .pipe(dest('tests-integration/generated/refModel/src/typescript/output'));
 }
 
 const testIntegration = series(
@@ -189,10 +187,8 @@ async function testMorphirIRGenTypeScript(cb) {
 
 function testMorphirIRBuildTypeScript(cb) {
     return src('tests-integration/generated/morphirIR/src/typescript/**/*.ts')
-        .pipe(ts({
-            outFile: 'output.js'
-        }))
-        .pipe(dest('tests-integration/generated/morphirIR/src/typescript/output.js'));
+        .pipe(ts({}))
+        .pipe(dest('tests-integration/generated/morphirIR/src/typescript/output'));
 }
 
 testMorphirIR = series(
@@ -216,13 +212,14 @@ exports.build = build;
 exports.test = test;
 exports.testIntegration = testIntegration;
 exports.testMorphirIR = testMorphirIR;
+exports.testMorphirIRTypeScript = testMorphirIR;
 exports.default =
     series(
         clean,
-        series(
-            cloneMorphirJVM,
-            copyMorphirJVMAssets,
-            cleanupMorphirJVM
-        ),
+        //series(
+            //cloneMorphirJVM,
+            //copyMorphirJVMAssets,
+            //cleanupMorphirJVM
+        //),
         build
     );
