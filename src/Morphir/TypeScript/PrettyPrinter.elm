@@ -71,7 +71,7 @@ mapTypeDef opt typeDef =
                 , newLine ++ "}"
                 ]
 
-        TypeAlias { name, privacy, doc, variables, typeExpression, decoder } ->
+        TypeAlias { name, privacy, doc, variables, typeExpression, decoder, encoder } ->
             let
                 docstring =
                     if String.length doc > 0 then
@@ -82,6 +82,14 @@ mapTypeDef opt typeDef =
 
                 decoderFunction =
                     case decoder of
+                        Just statement ->
+                            mapStatement statement
+
+                        Nothing ->
+                            ""
+
+                encoderFunction =
+                    case encoder of
                         Just statement ->
                             mapStatement statement
 
@@ -101,6 +109,8 @@ mapTypeDef opt typeDef =
                 , newLine
                 , decoderFunction
                 , newLine
+                , newLine
+                , encoderFunction
                 ]
 
         Interface { name, privacy, variables, fields } ->

@@ -38,7 +38,7 @@ mapTypeDefinition name typeDef =
                 , variables = variables |> List.map Name.toCamelCase |> List.map (\var -> TS.Variable var)
                 , typeExpression = typeExp |> mapTypeExp
                 , decoder = Just (generateDecoderFunction variables name typeExp)
-                , encoder = Nothing
+                , encoder = Just (generateEncoderFunction variables name typeExp)
                 }
             ]
 
@@ -302,4 +302,118 @@ generateDecoderFunction variables typeName typeExp =
         { name = [ "decode" ] ++ typeName
         , parameters = List.map Name.fromString [ "varDecoders", "input" ]
         , body = [ TS.ReturnStatement (call |> addInputParameter |> TS.Call) ]
+        }
+
+
+encoderExpression : TypeVariablesList -> Type.Type a -> TS.CallExpression
+encoderExpression typeVars typeExp =
+    case typeExp of
+        Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "basics" ] ], [ "bool" ] ) [] ->
+            { function = genericCodec "encodeBoolean", params = [] }
+
+        Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "basics" ] ], [ "float" ] ) [] ->
+            { function = genericCodec "encodeFloat", params = [] }
+
+        Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "basics" ] ], [ "int" ] ) [] ->
+            { function = genericCodec "encodeInt", params = [] }
+
+        Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "char" ] ], [ "char" ] ) [] ->
+            { function = genericCodec "encodeChar", params = [] }
+
+        Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "string" ] ], [ "string" ] ) [] ->
+            { function = genericCodec "encodeString", params = [] }
+
+        Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "dict" ] ], [ "dict" ] ) [ dictKeyType, dictValType ] ->
+            { function = genericCodec "encodeDict"
+            , params =
+                {--encodeKey --}
+                [ TS.Call (bindEncoderExpression typeVars dictKeyType)
+
+                {--encodeValue --}
+                , TS.Call (bindEncoderExpression typeVars dictValType)
+                ]
+            }
+
+        Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "list" ] ], [ "list" ] ) [ listType ] ->
+            { function = genericCodec "encodeList"
+            , params = [ TS.Call (bindEncoderExpression typeVars listType) ]
+            }
+
+        Type.Record _ fieldList ->
+            { function = genericCodec "encodeRecord"
+            , params =
+                {--fieldEncoders --}
+                [ (fieldList
+                    |> List.map
+                        (\field ->
+                            TS.ArrayLiteralExpression
+                                [ TS.StringLiteralExpression (Name.toCamelCase field.name)
+                                , TS.Call (bindEncoderExpression typeVars field.tpe)
+                                ]
+                        )
+                  )
+                    |> TS.ArrayLiteralExpression
+                    |> arrayToMap
+                ]
+            }
+
+        Type.Tuple _ tupleTypesList ->
+            { function = genericCodec "encodeTuple"
+            , params =
+                {--elementEncoders --}
+                [ TS.ArrayLiteralExpression
+                    (List.map (\item -> TS.Call (bindEncoderExpression typeVars item)) tupleTypesList)
+                ]
+            }
+
+        Type.Variable _ varName ->
+            { function =
+                TS.MemberExpression
+                    { object = TS.identifierFromString "varEncoders"
+                    , member = TS.Identifier varName
+                    }
+            , params = []
+            }
+
+        Type.Unit _ ->
+            { function = genericCodec "encodeUnit"
+            , params = []
+            }
+
+        {--Unhandled types are treated as Unit --}
+        _ ->
+            { function = genericCodec "encodeUnit"
+            , params = []
+            }
+
+
+bindEncoderExpression : TypeVariablesList -> Type.Type ta -> TS.CallExpression
+bindEncoderExpression variables typeExp =
+    let
+        expression =
+            encoderExpression variables typeExp
+    in
+    { function =
+        TS.MemberExpression
+            { object = expression.function
+            , member = TS.identifierFromString "bind"
+            }
+    , params = [ TS.NullLiteral ] ++ expression.params
+    }
+
+
+generateEncoderFunction : TypeVariablesList -> Name -> Type.Type ta -> TS.Statement
+generateEncoderFunction variables typeName typeExp =
+    let
+        call =
+            encoderExpression variables typeExp
+
+        addValueParameter : TS.CallExpression -> TS.CallExpression
+        addValueParameter oldcall =
+            { oldcall | params = call.params ++ [ TS.identifierFromString "value" ] }
+    in
+    TS.FunctionDeclaration
+        { name = [ "encode" ] ++ typeName
+        , parameters = List.map Name.fromString [ "varEncoders", "value" ]
+        , body = [ TS.ReturnStatement (call |> addValueParameter |> TS.Call) ]
         }
