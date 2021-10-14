@@ -186,9 +186,9 @@ export function encodeFloat(value: number): number {
     return value;
 }
 
-export function encodeCustomType(value: object,
-                                 argNames: Array<string>,
-                                 argEncoders: EncoderList): Array<any> {
+export function encodeCustomType(argNames: Array<string>,
+                                 argEncoders: EncoderList,
+                                 value: object): Array<any> {
     var result = [value['kind']];
     for (var i = 0; i < argNames.length; i++) {
         const name = argNames[i];
@@ -197,21 +197,21 @@ export function encodeCustomType(value: object,
     return result;
 }
 
-export function encodeDict<K,V>(value: Map<K,V>,
-                                encodeKey: (any) => K,
-                                encodeValue: (any) => V): Array<[K,V]> {
+export function encodeDict<K,V>(encodeKey: (any) => K,
+                                encodeValue: (any) => V,
+                                value: Map<K,V>): Array<[K,V]> {
     return Array.from(value.entries(), (pair: [K,V]): [K,V] => {
         return [encodeKey(pair[0]), encodeValue(pair[1])];
     });
 }
 
-export function encodeList<T>(value: Array<T>,
-                              encodeElement: (any) => T) {
+export function encodeList<T>(encodeElement: (any) => T,
+                              value: Array<T>) {
     return value.map(encodeElement);
 }
 
-export function encodeRecord(value: object,
-                             fieldEncoders: EncoderMap): object {
+export function encodeRecord(fieldEncoders: EncoderMap,
+                             value: object): object {
     let result = new Object;
     fieldEncoders.forEach((encoder: GenericEncoder, name: string) => {
         result[name] = encoder(value[name]);
@@ -219,8 +219,8 @@ export function encodeRecord(value: object,
     return result;
 }
 
-export function encodeTuple(value: Array<any>,
-                            elementEncoders: EncoderList): Array<any> {
+export function encodeTuple(elementEncoders: EncoderList,
+                            value: Array<any>): Array<any> {
     let result = new Array;
     for (var i = 0; i < value.length; i++) {
         result.push(elementEncoders[i](value[i]));
