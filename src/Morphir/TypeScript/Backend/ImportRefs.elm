@@ -54,7 +54,7 @@ renderInternalImport dirPath ( packagePath, modulePath ) =
         modulePathFromTop =
             ( packagePath, modulePath ) |> filePathFromTop
     in
-    { importClause = "{" ++ TS.namespaceNameFromPackageAndModule packagePath modulePath ++ "}"
+    { importClause = "{ " ++ TS.namespaceNameFromPackageAndModule packagePath modulePath ++ " }"
     , moduleSpecifier = makeRelativeImport dirPath modulePathFromTop
     }
 
