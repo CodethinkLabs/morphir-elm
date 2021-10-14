@@ -94,8 +94,9 @@ type Statement
         , body : List Statement
         , privacy : Privacy
         }
+    | LetStatement String Expression
+    | ExpressionStatement Expression
     | ReturnStatement Expression
-    | TypeDef
 
 
 {-| Represents a type definition.

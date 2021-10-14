@@ -44,6 +44,7 @@ mapTypeDefinition name typeDef =
 
         Type.CustomTypeDefinition variables accessControlledConstructors ->
             let
+                tsVariables : List TS.TypeExp
                 tsVariables =
                     variables |> List.map Name.toCamelCase |> List.map (\var -> TS.Variable var)
 
@@ -57,7 +58,7 @@ mapTypeDefinition name typeDef =
 
                 constructorInterfaces =
                     constructors
-                        |> List.map (mapConstructor privacy tsVariables)
+                        |> List.map (mapConstructor privacy variables)
 
                 union =
                     if List.all ((==) name) constructorNames then
@@ -78,7 +79,7 @@ mapTypeDefinition name typeDef =
                                                     TS.TypeRef (FQName.fQName [] [] ctorName) tsVariables
                                                 )
                                         )
-                                , decoder = Nothing
+                                , decoder = Just (generateUnionDecoderFunction privacy variables name constructorNames)
                                 , encoder = Nothing
                                 }
                             )
@@ -98,12 +99,18 @@ mapPrivacy privacy =
 
 {-| Map a Morphir Constructor (A tuple of Name and Constructor Args) to a Typescript AST Interface
 -}
-mapConstructor : TS.Privacy -> List TS.TypeExp -> ( Name, List ( Name, Type.Type ta ) ) -> TS.TypeDef
+mapConstructor : TS.Privacy -> List Name -> ( Name, List ( Name, Type.Type ta ) ) -> TS.TypeDef
 mapConstructor privacy variables ( ctorName, ctorArgs ) =
     let
+        tsVariables : List TS.TypeExp
+        tsVariables =
+            variables |> List.map Name.toCamelCase |> List.map (\var -> TS.Variable var)
+
+        kindField : ( String, TS.TypeExp )
         kindField =
             ( "kind", TS.LiteralString (ctorName |> Name.toTitleCase) )
 
+        otherFields : List ( String, TS.TypeExp )
         otherFields =
             ctorArgs
                 |> List.map
@@ -114,9 +121,9 @@ mapConstructor privacy variables ( ctorName, ctorArgs ) =
     TS.Interface
         { name = ctorName |> Name.toTitleCase
         , privacy = privacy
-        , variables = variables
+        , variables = tsVariables
         , fields = kindField :: otherFields
-        , decoder = Nothing
+        , decoder = Just (generateConstructorDecoderFunction privacy variables ctorName ctorArgs)
         , encoder = Nothing
         }
 
@@ -181,6 +188,7 @@ genericCodec function =
         { object = TS.Identifier "codecs"
         , member = TS.Identifier function
         }
+
 
 
 {--
@@ -276,13 +284,6 @@ decoderExpression typeVars typeExp =
             , params = []
             }
 
-{--
-        Type.Reference _ fQName argTypes
-            { function = referenceCodec fQName
-            , params = []
-            }--}
-
-        {--Unhandled types are treated as Unit --}
         _ ->
             { function = genericCodec "decodeUnit"
             , params = []
@@ -300,13 +301,14 @@ bindDecoderExpression variables typeExp =
             { object = expression.function
             , member = TS.Identifier "bind"
             }
-    , params = [ TS.NullLiteral ] ++ expression.params
+    , params = TS.NullLiteral :: expression.params
     }
 
 
 generateDecoderFunction : TypeVariablesList -> Name -> Access -> Type.Type ta -> TS.Statement
 generateDecoderFunction variables typeName access typeExp =
     let
+        call : TS.CallExpression
         call =
             decoderExpression variables typeExp
 
@@ -319,6 +321,113 @@ generateDecoderFunction variables typeName access typeExp =
         , parameters = [ "varDecoders", "input" ]
         , privacy = access |> mapPrivacy
         , body = [ TS.ReturnStatement (call |> addInputParameter |> TS.Call) ]
+        }
+
+
+generateConstructorDecoderFunction : TS.Privacy -> TypeVariablesList -> Name -> List ( Name, Type.Type ta ) -> TS.Statement
+generateConstructorDecoderFunction privacy variables typeName ctorArgs =
+    let
+        argNames : List Name
+        argNames =
+            ctorArgs
+                |> List.map
+                    (\( argName, _ ) -> argName)
+
+        argTypes : List (Type.Type ta)
+        argTypes =
+            ctorArgs
+                |> List.map
+                    (\( _, argType ) -> argType)
+
+        call : TS.CallExpression
+        call =
+            { function = genericCodec "decodeCustomTypeVariant"
+            , params =
+                [ TS.StringLiteralExpression (typeName |> Name.toTitleCase)
+                , TS.ArrayLiteralExpression
+                    (argNames |> List.map (Name.toCamelCase >> TS.StringLiteralExpression))
+                , TS.ArrayLiteralExpression
+                    (argTypes
+                        |> List.map
+                            (bindDecoderExpression variables >> TS.Call)
+                    )
+                ]
+
+            --, TS.ArrayLiteralExpression ()
+            }
+
+        addInputParameter : TS.CallExpression -> TS.CallExpression
+        addInputParameter oldcall =
+            { oldcall | params = call.params ++ [ TS.Identifier "input" ] }
+    in
+    TS.FunctionDeclaration
+        { name = "decode" ++ (typeName |> Name.toTitleCase)
+        , privacy = privacy
+        , parameters = [ "varDecoders", "input" ]
+        , body = [ TS.ReturnStatement (call |> addInputParameter |> TS.Call) ]
+        }
+
+
+generateUnionDecoderFunction : TS.Privacy -> TypeVariablesList -> Name -> List Name -> TS.Statement
+generateUnionDecoderFunction privacy variables typeName constructorNames =
+    let
+        letStatement : TS.Statement
+        letStatement =
+            TS.LetStatement "decoderMap" (TS.NewExpression { constructor = "Map", arguments = [] })
+
+        getMapSetStatement : Name -> TS.Statement
+        getMapSetStatement name =
+            TS.ExpressionStatement
+                (TS.Call
+                    { function =
+                        TS.MemberExpression
+                            { object = TS.Identifier "decoderMap"
+                            , member = TS.Identifier "set"
+                            }
+                    , params =
+                        [ TS.StringLiteralExpression (name |> Name.toTitleCase)
+                        , TS.Call
+                            { function =
+                                TS.MemberExpression
+                                    { object = TS.Identifier ("decode" ++ (name |> Name.toTitleCase))
+                                    , member = TS.Identifier "bind"
+                                    }
+                            , params = [ TS.Identifier "varDecoders" ]
+                            }
+                        ]
+                    }
+                )
+
+        mapSetStatements : List TS.Statement
+        mapSetStatements =
+            constructorNames |> List.map getMapSetStatement
+
+        finalStatement : TS.Statement
+        finalStatement =
+            TS.ReturnStatement
+                (TS.Call
+                    { function =
+                        TS.MemberExpression
+                            { object = TS.Identifier "codecs"
+                            , member = TS.Identifier "decodeCustomType"
+                            }
+                    , params =
+                        [ TS.Identifier "decoderMap"
+                        , TS.Identifier "input"
+                        ]
+                    }
+                )
+    in
+    TS.FunctionDeclaration
+        { name = "decode" ++ (typeName |> Name.toTitleCase)
+        , privacy = privacy
+        , parameters = [ "varDecoders", "input" ]
+        , body =
+            List.concat
+                [ [ letStatement ]
+                , mapSetStatements
+                , [ finalStatement ]
+                ]
         }
 
 
@@ -415,7 +524,7 @@ bindEncoderExpression variables typeExp =
             { object = expression.function
             , member = TS.Identifier "bind"
             }
-    , params = [ TS.NullLiteral ] ++ expression.params
+    , params = TS.NullLiteral :: expression.params
     }
 
 
