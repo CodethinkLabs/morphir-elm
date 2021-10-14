@@ -32,7 +32,7 @@ mapTypeDefinition name typeDef =
     case typeDef.value.value of
         Type.TypeAliasDefinition variables typeExp ->
             [ TS.TypeAlias
-                { name = name
+                { name = name |> Name.toTitleCase
                 , privacy = privacy
                 , doc = doc
                 , variables = variables |> List.map Name.toCamelCase |> List.map (\var -> TS.Variable var)
@@ -66,7 +66,7 @@ mapTypeDefinition name typeDef =
                     else
                         List.singleton
                             (TS.TypeAlias
-                                { name = name
+                                { name = name |> Name.toTitleCase
                                 , privacy = privacy
                                 , doc = doc
                                 , variables = tsVariables
@@ -112,7 +112,7 @@ mapConstructor privacy variables ( ctorName, ctorArgs ) =
                     )
     in
     TS.Interface
-        { name = ctorName
+        { name = ctorName |> Name.toTitleCase
         , privacy = privacy
         , variables = variables
         , fields = kindField :: otherFields
@@ -178,9 +178,19 @@ mapTypeExp tpe =
 genericCodec : String -> TS.Expression
 genericCodec function =
     TS.MemberExpression
-        { object = TS.identifierFromString "codecs "
-        , member = TS.identifierFromString function
+        { object = TS.Identifier "codecs"
+        , member = TS.Identifier function
         }
+
+
+{--
+referenceCodec : FQName -> TS.Expression
+referenceCodec ( packageName, moduleName, typeName ) =
+    let
+        dereferencePathComponent : String -> TS.Expression
+        dereferencePathComponent name =
+            TS.MemberExpression
+                { object = name --}
 
 
 arrayToMap : TS.Expression -> TS.Expression
@@ -255,8 +265,8 @@ decoderExpression typeVars typeExp =
         Type.Variable _ varName ->
             { function =
                 TS.MemberExpression
-                    { object = TS.identifierFromString "varDecoders"
-                    , member = TS.Identifier varName
+                    { object = TS.Identifier "varDecoders"
+                    , member = TS.Identifier (varName |> Name.toTitleCase)
                     }
             , params = []
             }
@@ -265,6 +275,12 @@ decoderExpression typeVars typeExp =
             { function = genericCodec "decodeUnit"
             , params = []
             }
+
+{--
+        Type.Reference _ fQName argTypes
+            { function = referenceCodec fQName
+            , params = []
+            }--}
 
         {--Unhandled types are treated as Unit --}
         _ ->
@@ -282,7 +298,7 @@ bindDecoderExpression variables typeExp =
     { function =
         TS.MemberExpression
             { object = expression.function
-            , member = TS.identifierFromString "bind"
+            , member = TS.Identifier "bind"
             }
     , params = [ TS.NullLiteral ] ++ expression.params
     }
@@ -296,11 +312,11 @@ generateDecoderFunction variables typeName access typeExp =
 
         addInputParameter : TS.CallExpression -> TS.CallExpression
         addInputParameter oldcall =
-            { oldcall | params = call.params ++ [ TS.identifierFromString "input" ] }
+            { oldcall | params = call.params ++ [ TS.Identifier "input" ] }
     in
     TS.FunctionDeclaration
-        { name = [ "decode" ] ++ typeName
-        , parameters = List.map Name.fromString [ "varDecoders", "input" ]
+        { name = "decode" ++ (typeName |> Name.toTitleCase)
+        , parameters = [ "varDecoders", "input" ]
         , privacy = access |> mapPrivacy
         , body = [ TS.ReturnStatement (call |> addInputParameter |> TS.Call) ]
         }
@@ -370,8 +386,8 @@ encoderExpression typeVars typeExp =
         Type.Variable _ varName ->
             { function =
                 TS.MemberExpression
-                    { object = TS.identifierFromString "varEncoders"
-                    , member = TS.Identifier varName
+                    { object = TS.Identifier "varEncoders"
+                    , member = TS.Identifier (varName |> Name.toCamelCase)
                     }
             , params = []
             }
@@ -397,7 +413,7 @@ bindEncoderExpression variables typeExp =
     { function =
         TS.MemberExpression
             { object = expression.function
-            , member = TS.identifierFromString "bind"
+            , member = TS.Identifier "bind"
             }
     , params = [ TS.NullLiteral ] ++ expression.params
     }
@@ -411,11 +427,11 @@ generateEncoderFunction variables typeName access typeExp =
 
         addValueParameter : TS.CallExpression -> TS.CallExpression
         addValueParameter oldcall =
-            { oldcall | params = call.params ++ [ TS.identifierFromString "value" ] }
+            { oldcall | params = call.params ++ [ TS.Identifier "value" ] }
     in
     TS.FunctionDeclaration
-        { name = [ "encode" ] ++ typeName
-        , parameters = List.map Name.fromString [ "varEncoders", "value" ]
+        { name = "encode" ++ (typeName |> Name.toTitleCase)
+        , parameters = [ "varEncoders", "value" ]
         , privacy = access |> mapPrivacy
         , body = [ TS.ReturnStatement (call |> addValueParameter |> TS.Call) ]
         }

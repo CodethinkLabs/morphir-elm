@@ -98,10 +98,7 @@ mapModuleDefinition opt distribution currentPackagePath currentModulePath access
         namespace : TS.TypeDef
         namespace =
             TS.Namespace
-                { name =
-                    (currentPackagePath ++ currentModulePath)
-                        |> Path.toString Name.toTitleCase "_"
-                        |> List.singleton
+                { name = TS.namespaceNameFromPackageAndModule currentPackagePath currentModulePath
                 , privacy = TS.Public
                 , content = typeDefs
                 }
