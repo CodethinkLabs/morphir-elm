@@ -43,20 +43,20 @@ mapImportDeclaration { importClause, moduleSpecifier } =
         ]
 
 
+exportIfPublic : Privacy -> String
+exportIfPublic privacy =
+    case privacy of
+        Public ->
+            "export "
+
+        Private ->
+            ""
+
+
 {-| Map a type definition to text.
 -}
 mapTypeDef : Options -> TypeDef -> Doc
 mapTypeDef opt typeDef =
-    let
-        exportIfPublic : Privacy -> String
-        exportIfPublic privacy =
-            case privacy of
-                Public ->
-                    "export "
-
-                Private ->
-                    ""
-    in
     case typeDef of
         Namespace { name, privacy, content } ->
             concat
@@ -200,9 +200,10 @@ mapExpression expression =
 mapStatement : Statement -> String
 mapStatement statement =
     case statement of
-        FunctionDeclaration { name, parameters, body } ->
+        FunctionDeclaration { name, parameters, body, privacy } ->
             concat
-                [ "function "
+                [ privacy |> exportIfPublic
+                , "function "
                 , name |> Name.toCamelCase
                 , "("
                 , String.join ", " (List.map Name.toCamelCase parameters)

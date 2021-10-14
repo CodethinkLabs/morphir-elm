@@ -97,6 +97,7 @@ type Statement
         { name : Name
         , parameters : List Name
         , body : List Statement
+        , privacy : Privacy
         }
     | ReturnStatement Expression
     | TypeDef

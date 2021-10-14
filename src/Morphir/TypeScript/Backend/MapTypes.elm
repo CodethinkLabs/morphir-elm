@@ -37,8 +37,8 @@ mapTypeDefinition name typeDef =
                 , doc = doc
                 , variables = variables |> List.map Name.toCamelCase |> List.map (\var -> TS.Variable var)
                 , typeExpression = typeExp |> mapTypeExp
-                , decoder = Just (generateDecoderFunction variables name typeExp)
-                , encoder = Just (generateEncoderFunction variables name typeExp)
+                , decoder = Just (generateDecoderFunction variables name typeDef.access typeExp)
+                , encoder = Just (generateEncoderFunction variables name typeDef.access typeExp)
                 }
             ]
 
@@ -288,8 +288,8 @@ bindDecoderExpression variables typeExp =
     }
 
 
-generateDecoderFunction : TypeVariablesList -> Name -> Type.Type ta -> TS.Statement
-generateDecoderFunction variables typeName typeExp =
+generateDecoderFunction : TypeVariablesList -> Name -> Access -> Type.Type ta -> TS.Statement
+generateDecoderFunction variables typeName access typeExp =
     let
         call =
             decoderExpression variables typeExp
@@ -301,6 +301,7 @@ generateDecoderFunction variables typeName typeExp =
     TS.FunctionDeclaration
         { name = [ "decode" ] ++ typeName
         , parameters = List.map Name.fromString [ "varDecoders", "input" ]
+        , privacy = access |> mapPrivacy
         , body = [ TS.ReturnStatement (call |> addInputParameter |> TS.Call) ]
         }
 
@@ -402,8 +403,8 @@ bindEncoderExpression variables typeExp =
     }
 
 
-generateEncoderFunction : TypeVariablesList -> Name -> Type.Type ta -> TS.Statement
-generateEncoderFunction variables typeName typeExp =
+generateEncoderFunction : TypeVariablesList -> Name -> Access -> Type.Type ta -> TS.Statement
+generateEncoderFunction variables typeName access typeExp =
     let
         call =
             encoderExpression variables typeExp
@@ -415,5 +416,6 @@ generateEncoderFunction variables typeName typeExp =
     TS.FunctionDeclaration
         { name = [ "encode" ] ++ typeName
         , parameters = List.map Name.fromString [ "varEncoders", "value" ]
+        , privacy = access |> mapPrivacy
         , body = [ TS.ReturnStatement (call |> addValueParameter |> TS.Call) ]
         }
