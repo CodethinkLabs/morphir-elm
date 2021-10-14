@@ -71,7 +71,23 @@ export function decodeFloat(input: any): number {
     return input;
 }
 
-export function decodeCustomType(kind: string,
+export function decodeCustomType(decoderMap: DecoderMap, input: any): object {
+    if (typeof input == "string") input = [input];
+    if (!(input instanceof Array)) {
+        throw new DecodeError(`Expected Array, got ${typeof input}`);
+    }
+    if (!(typeof input[0] == "string")) {
+        throw new DecodeError(`Expected String, got ${typeof input}`);
+    }
+    if (!(decoderMap.has(input[0]))) {
+        let variantNames = Array.from(decoderMap.keys());
+        let variantNameString = variantNames.join(", ")
+        throw new DecodeError(`Expected one of "${variantNameString}", got ${input[0]}`);
+    }
+    return decoderMap.get(input[0])(input)
+}
+
+export function decodeCustomTypeVariant(kind: string,
                                  argNames: Array<string>,
                                  argDecoders: DecoderList,
                                  input: any): object {
@@ -186,9 +202,9 @@ export function encodeFloat(value: number): number {
     return value;
 }
 
-export function encodeCustomType(argNames: Array<string>,
+export function encodeCustomTypeVariant(argNames: Array<string>,
                                  argEncoders: EncoderList,
-                                 value: object): Array<any> {
+                                 value: object,): Array<any> {
     var result = [value['kind']];
     for (var i = 0; i < argNames.length; i++) {
         const name = argNames[i];

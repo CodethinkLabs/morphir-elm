@@ -78,22 +78,6 @@ mapTypeDef opt typeDef =
 
                     else
                         ""
-
-                decoderFunction =
-                    case decoder of
-                        Just statement ->
-                            mapStatement statement
-
-                        Nothing ->
-                            ""
-
-                encoderFunction =
-                    case encoder of
-                        Just statement ->
-                            mapStatement statement
-
-                        Nothing ->
-                            ""
             in
             concat
                 [ docstring
@@ -106,13 +90,13 @@ mapTypeDef opt typeDef =
                 , mapTypeExp opt typeExpression
                 , newLine
                 , newLine
-                , decoderFunction
+                , mapMaybeStatement decoder
                 , newLine
                 , newLine
-                , encoderFunction
+                , mapMaybeStatement encoder
                 ]
 
-        Interface { name, privacy, variables, fields } ->
+        Interface { name, privacy, variables, fields, decoder } ->
             concat
                 [ privacy |> exportIfPublic
                 , "interface "
@@ -120,6 +104,9 @@ mapTypeDef opt typeDef =
                 , mapGenericVariables opt variables
                 , " "
                 , mapObjectExp opt fields
+                , newLine
+                , newLine
+                , mapMaybeStatement decoder
                 ]
 
         ImportAlias { name, privacy, namespacePath } ->
@@ -196,6 +183,16 @@ mapExpression expression =
                 ]
 
 
+mapMaybeStatement : Maybe Statement -> String
+mapMaybeStatement maybeStatement =
+    case maybeStatement of
+        Just statement ->
+            mapStatement statement
+
+        Nothing ->
+            ""
+
+
 mapStatement : Statement -> String
 mapStatement statement =
     case statement of
@@ -216,5 +213,8 @@ mapStatement statement =
         ReturnStatement expression ->
             concat [ "return ", mapExpression expression, ";" ]
 
-        _ ->
-            ""
+        LetStatement lhsString rhsExpression ->
+            concat [ "let ", lhsString, " = ", mapExpression rhsExpression, ";" ]
+
+        ExpressionStatement expression ->
+            concat [ mapExpression expression, ";" ]
