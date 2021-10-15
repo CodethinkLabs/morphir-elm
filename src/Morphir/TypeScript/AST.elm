@@ -1,6 +1,6 @@
 module Morphir.TypeScript.AST exposing
     ( TypeDef(..), TypeExp(..)
-    , CallExpression, CompilationUnit, Expression(..), ImportDeclaration, NamespacePath, ObjectExp, Privacy(..), Statement(..), emptyObject, identifierFromString, namespaceNameFromPackageAndModule
+    , CallExpression, CompilationUnit, Expression(..), ImportDeclaration, NamespacePath, ObjectExp, Privacy(..), Statement(..), emptyObject, namespaceNameFromPackageAndModule
     )
 
 {-| This module contains the TypeScript AST (Abstract Syntax Tree). The purpose of this AST is to make it easier to
@@ -68,7 +68,7 @@ type alias CallExpression =
 type Expression
     = ArrayLiteralExpression (List Expression)
     | Call CallExpression
-    | Identifier Name
+    | Identifier String
     | MemberExpression
         { object : Expression
         , member : Expression
@@ -78,7 +78,7 @@ type Expression
         , arguments : List Expression
         }
     | NullLiteral
-    | ObjectLiteralExpression { properties : List ( Name, Expression ) }
+    | ObjectLiteralExpression { properties : List ( String, Expression ) }
     | StringLiteralExpression String
 
 
@@ -87,16 +87,12 @@ emptyObject =
     ObjectLiteralExpression { properties = [] }
 
 
-identifierFromString : String -> Expression
-identifierFromString string =
-    Identifier (Name.fromString string)
-
-
 type Statement
     = FunctionDeclaration
-        { name : Name
-        , parameters : List Name
+        { name : String
+        , parameters : List String
         , body : List Statement
+        , privacy : Privacy
         }
     | ReturnStatement Expression
     | TypeDef
@@ -106,12 +102,12 @@ type Statement
 -}
 type TypeDef
     = Namespace
-        { name : Name
+        { name : String
         , privacy : Privacy
         , content : List TypeDef
         }
     | TypeAlias
-        { name : Name
+        { name : String
         , doc : String
         , privacy : Privacy
         , variables : List TypeExp
@@ -120,7 +116,7 @@ type TypeDef
         , encoder : Maybe Statement
         }
     | Interface
-        { name : Name
+        { name : String
         , privacy : Privacy
         , variables : List TypeExp
         , fields : ObjectExp
@@ -128,7 +124,7 @@ type TypeDef
         , encoder : Maybe Statement
         }
     | ImportAlias
-        { name : Name
+        { name : String
         , privacy : Privacy
         , namespacePath : NamespacePath
         }

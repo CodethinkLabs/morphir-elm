@@ -8,7 +8,6 @@ representation.
 -}
 
 import Morphir.File.SourceCode exposing (Doc, concat, indentLines, newLine)
-import Morphir.IR.Name as Name exposing (Name)
 import Morphir.IR.Path exposing (Path)
 import Morphir.TypeScript.AST exposing (CompilationUnit, Expression(..), ImportDeclaration, NamespacePath, Privacy(..), Statement(..), TypeDef(..), TypeExp(..))
 import Morphir.TypeScript.PrettyPrinter.MapExpressions exposing (..)
@@ -43,26 +42,26 @@ mapImportDeclaration { importClause, moduleSpecifier } =
         ]
 
 
+exportIfPublic : Privacy -> String
+exportIfPublic privacy =
+    case privacy of
+        Public ->
+            "export "
+
+        Private ->
+            ""
+
+
 {-| Map a type definition to text.
 -}
 mapTypeDef : Options -> TypeDef -> Doc
 mapTypeDef opt typeDef =
-    let
-        exportIfPublic : Privacy -> String
-        exportIfPublic privacy =
-            case privacy of
-                Public ->
-                    "export "
-
-                Private ->
-                    ""
-    in
     case typeDef of
         Namespace { name, privacy, content } ->
             concat
                 [ privacy |> exportIfPublic
                 , "namespace "
-                , name |> Name.toTitleCase
+                , name
                 , " {" ++ newLine
                 , content
                     |> List.map (mapTypeDef opt)
@@ -101,7 +100,7 @@ mapTypeDef opt typeDef =
                 , newLine
                 , privacy |> exportIfPublic
                 , "type "
-                , name |> Name.toTitleCase
+                , name
                 , mapGenericVariables opt variables
                 , " = "
                 , mapTypeExp opt typeExpression
@@ -117,7 +116,7 @@ mapTypeDef opt typeDef =
             concat
                 [ privacy |> exportIfPublic
                 , "interface "
-                , name |> Name.toTitleCase
+                , name
                 , mapGenericVariables opt variables
                 , " "
                 , mapObjectExp opt fields
@@ -127,7 +126,7 @@ mapTypeDef opt typeDef =
             concat
                 [ privacy |> exportIfPublic
                 , "import "
-                , name |> Name.toTitleCase
+                , name
                 , " = "
                 , namespaceNameFromPackageAndModule (Tuple.first namespacePath) (Tuple.second namespacePath)
                 ]
@@ -152,7 +151,7 @@ mapExpression expression =
                 ]
 
         Identifier name ->
-            Name.toCamelCase name
+            name
 
         MemberExpression { object, member } ->
             concat
@@ -175,10 +174,10 @@ mapExpression expression =
 
         ObjectLiteralExpression { properties } ->
             let
-                mapObjectField : ( Name, Expression ) -> String
+                mapObjectField : ( String, Expression ) -> String
                 mapObjectField ( fieldName, fieldValue ) =
                     concat
-                        [ fieldName |> Name.toCamelCase
+                        [ fieldName
                         , ": "
                         , fieldValue |> mapExpression
                         ]
@@ -200,12 +199,13 @@ mapExpression expression =
 mapStatement : Statement -> String
 mapStatement statement =
     case statement of
-        FunctionDeclaration { name, parameters, body } ->
+        FunctionDeclaration { name, parameters, body, privacy } ->
             concat
-                [ "function "
-                , name |> Name.toCamelCase
+                [ privacy |> exportIfPublic
+                , "function "
+                , name
                 , "("
-                , String.join ", " (List.map Name.toCamelCase parameters)
+                , String.join ", " parameters
                 , ") {"
                 , newLine
                 , String.join newLine (List.map mapStatement body)

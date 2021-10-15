@@ -55,7 +55,7 @@ mapModuleNamespacesForTopLevelFile packagePath packageDef =
                         let
                             importAlias =
                                 TS.ImportAlias
-                                    { name = lastName
+                                    { name = lastName |> Name.toTitleCase
                                     , privacy = privacy
                                     , namespacePath = ( packagePath, modulePath )
                                     }
@@ -63,7 +63,7 @@ mapModuleNamespacesForTopLevelFile packagePath packageDef =
                             step : Name -> TS.TypeDef -> TS.TypeDef
                             step name state =
                                 TS.Namespace
-                                    { name = name
+                                    { name = name |> Name.toTitleCase
                                     , privacy = privacy
                                     , content = List.singleton state
                                     }

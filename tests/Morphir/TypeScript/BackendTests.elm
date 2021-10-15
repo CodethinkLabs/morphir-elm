@@ -42,7 +42,7 @@ mapTypeDefinitionTests =
                     )
                     |> Expect.equal
                         [ TS.TypeAlias
-                            { name = (Name.fromString "MyFoo")
+                            { name = "MyFoo"
                             , doc = ""
                             , privacy = TS.Public
                             , variables = []
@@ -54,7 +54,7 @@ mapTypeDefinitionTests =
                             , encoder = Nothing
                             }
                         , TS.Interface
-                            { name = (Name.fromString "Bar")
+                            { name = "Bar"
                             , privacy = TS.Public
                             , variables = []
                             , fields = [ ( "kind", TS.LiteralString "Bar" ) ]
@@ -62,7 +62,7 @@ mapTypeDefinitionTests =
                             , encoder = Nothing
                             }
                         , TS.Interface
-                            { name = (Name.fromString "Baz")
+                            { name = "Baz"
                             , privacy = TS.Public
                             , variables = []
                             , fields =
@@ -92,7 +92,7 @@ mapTypeDefinitionTests =
                     |> Expect.equal
                         {- There should be no TS.Union here, as the name would conflict with the TS.Interface -}
                         [ TS.Interface
-                            { name = Name.fromString "sameName"
+                            { name = "SameName"
                             , privacy = TS.Public
                             , variables = []
                             , fields = [ ( "kind", TS.LiteralString "SameName" ) ]
