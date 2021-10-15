@@ -9,12 +9,57 @@ import Morphir.IR.AccessControlled exposing (Access(..), AccessControlled)
 import Morphir.IR.Documented exposing (Documented)
 import Morphir.IR.FQName as FQName
 import Morphir.IR.Name as Name exposing (Name)
-import Morphir.IR.Type as Type
+import Morphir.IR.Type as Type exposing (Type)
 import Morphir.TypeScript.AST as TS
 
 
 type alias TypeVariablesList =
     List Name
+
+
+type alias ConstructorDetail a =
+    { name : Name
+    , privacy : TS.Privacy
+    , args : List ( Name, Type a )
+    , typeVariables : List (Type a)
+    , typeVariableNames : List Name
+    }
+
+
+getConstructorDetails : TS.Privacy -> ( Name, List ( Name, Type a ) ) -> ConstructorDetail a
+getConstructorDetails privacy ( ctorName, ctorArgs ) =
+    let
+        typeVariables : List (Type a)
+        typeVariables =
+            ctorArgs
+                |> List.map Tuple.second
+                |> List.filter
+                    (\argType ->
+                        case argType of
+                            Type.Variable _ _ ->
+                                True
+
+                            _ ->
+                                False
+                    )
+    in
+    { name = ctorName
+    , privacy = privacy
+    , args = ctorArgs
+    , typeVariables = typeVariables
+    , typeVariableNames =
+        typeVariables
+            |> List.map
+                (\argType ->
+                    case argType of
+                        Type.Variable _ name ->
+                            name
+
+                        _ ->
+                            -- Should never happen
+                            []
+                )
+    }
 
 
 {-| Map a Morphir type definition into a list of TypeScript type definitions. The reason for returning a list is that
@@ -44,21 +89,23 @@ mapTypeDefinition name typeDef =
 
         Type.CustomTypeDefinition variables accessControlledConstructors ->
             let
-                tsVariables : List TS.TypeExp
-                tsVariables =
-                    variables |> List.map Name.toTitleCase |> List.map (\var -> TS.Variable var)
-
-                constructors =
+                constructorDetails : List (ConstructorDetail ta)
+                constructorDetails =
                     accessControlledConstructors.value
                         |> Dict.toList
+                        |> List.map (getConstructorDetails privacy)
+
+                constructorInterfaces =
+                    constructorDetails
+                        |> List.map mapConstructor
+
+                tsVariables : List TS.TypeExp
+                tsVariables =
+                    variables |> List.map (Name.toTitleCase >> TS.Variable)
 
                 constructorNames =
                     accessControlledConstructors.value
                         |> Dict.keys
-
-                constructorInterfaces =
-                    constructors
-                        |> List.map (mapConstructor privacy variables)
 
                 union =
                     if List.all ((==) name) constructorNames then
@@ -73,10 +120,12 @@ mapTypeDefinition name typeDef =
                                 , variables = tsVariables
                                 , typeExpression =
                                     TS.Union
-                                        (constructors
+                                        (constructorDetails
                                             |> List.map
-                                                (\( ctorName, _ ) ->
-                                                    TS.TypeRef (FQName.fQName [] [] ctorName) tsVariables
+                                                (\constructor ->
+                                                    TS.TypeRef
+                                                        (FQName.fQName [] [] constructor.name)
+                                                        (constructor.typeVariableNames |> List.map (Name.toTitleCase >> TS.Variable))
                                                 )
                                         )
                                 , decoder = Just (generateUnionDecoderFunction privacy variables name constructorNames)
@@ -99,31 +148,27 @@ mapPrivacy privacy =
 
 {-| Map a Morphir Constructor (A tuple of Name and Constructor Args) to a Typescript AST Interface
 -}
-mapConstructor : TS.Privacy -> List Name -> ( Name, List ( Name, Type.Type ta ) ) -> TS.TypeDef
-mapConstructor privacy variables ( ctorName, ctorArgs ) =
+mapConstructor : ConstructorDetail ta -> TS.TypeDef
+mapConstructor constructor =
     let
-        tsVariables : List TS.TypeExp
-        tsVariables =
-            variables |> List.map Name.toTitleCase |> List.map (\var -> TS.Variable var)
-
         kindField : ( String, TS.TypeExp )
         kindField =
-            ( "kind", TS.LiteralString (ctorName |> Name.toTitleCase) )
+            ( "kind", TS.LiteralString (constructor.name |> Name.toTitleCase) )
 
         otherFields : List ( String, TS.TypeExp )
         otherFields =
-            ctorArgs
+            constructor.args
                 |> List.map
                     (\( argName, argType ) ->
                         ( argName |> Name.toCamelCase, mapTypeExp argType )
                     )
     in
     TS.Interface
-        { name = ctorName |> Name.toTitleCase
-        , privacy = privacy
-        , variables = tsVariables
+        { name = constructor.name |> Name.toTitleCase
+        , privacy = constructor.privacy
+        , variables = constructor.typeVariableNames |> List.map (Name.toTitleCase >> TS.Variable)
         , fields = kindField :: otherFields
-        , decoder = Just (generateConstructorDecoderFunction privacy variables ctorName ctorArgs)
+        , decoder = Just (generateConstructorDecoderFunction constructor)
         , encoder = Nothing
         }
 
@@ -324,47 +369,46 @@ generateDecoderFunction variables typeName access typeExp =
         }
 
 
-generateConstructorDecoderFunction : TS.Privacy -> TypeVariablesList -> Name -> List ( Name, Type.Type ta ) -> TS.Statement
-generateConstructorDecoderFunction privacy variables typeName ctorArgs =
+generateConstructorDecoderFunction : ConstructorDetail ta -> TS.Statement
+generateConstructorDecoderFunction constructor =
     let
-        argNames : List Name
-        argNames =
-            ctorArgs
-                |> List.map
-                    (\( argName, _ ) -> argName)
+        kindParam =
+            TS.StringLiteralExpression (constructor.name |> Name.toTitleCase)
 
-        argTypes : List (Type.Type ta)
-        argTypes =
-            ctorArgs
-                |> List.map
-                    (\( _, argType ) -> argType)
+        argNamesParam =
+            TS.ArrayLiteralExpression
+                (constructor.args
+                    |> List.map (Tuple.first >> Name.toCamelCase >> TS.StringLiteralExpression)
+                )
 
-        call : TS.CallExpression
+        argDecodersParam =
+            TS.ArrayLiteralExpression
+                (constructor.args
+                    |> List.map Tuple.second
+                    |> List.map (bindDecoderExpression constructor.typeVariableNames)
+                    |> List.map TS.Call
+                )
+
+        inputParam =
+            TS.Identifier "input"
+
+        call : TS.Expression
         call =
-            { function = genericCodec "decodeCustomTypeVariant"
-            , params =
-                [ TS.StringLiteralExpression (typeName |> Name.toTitleCase)
-                , TS.ArrayLiteralExpression
-                    (argNames |> List.map (Name.toCamelCase >> TS.StringLiteralExpression))
-                , TS.ArrayLiteralExpression
-                    (argTypes
-                        |> List.map
-                            (bindDecoderExpression variables >> TS.Call)
-                    )
-                ]
-
-            --, TS.ArrayLiteralExpression ()
-            }
-
-        addInputParameter : TS.CallExpression -> TS.CallExpression
-        addInputParameter oldcall =
-            { oldcall | params = call.params ++ [ TS.Identifier "input" ] }
+            TS.Call
+                { function = genericCodec "decodeCustomTypeVariant"
+                , params =
+                    [ kindParam
+                    , argNamesParam
+                    , argDecodersParam
+                    , inputParam
+                    ]
+                }
     in
     TS.FunctionDeclaration
-        { name = "decode" ++ (typeName |> Name.toTitleCase)
-        , privacy = privacy
+        { name = "decode" ++ (constructor.name |> Name.toTitleCase)
+        , privacy = constructor.privacy
         , parameters = [ "varDecoders", "input" ]
-        , body = [ TS.ReturnStatement (call |> addInputParameter |> TS.Call) ]
+        , body = [ TS.ReturnStatement call ]
         }
 
 
