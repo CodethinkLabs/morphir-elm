@@ -35,7 +35,7 @@ mapTypeDefinition name typeDef =
                 { name = name |> Name.toTitleCase
                 , privacy = privacy
                 , doc = doc
-                , variables = variables |> List.map Name.toCamelCase |> List.map (\var -> TS.Variable var)
+                , variables = variables |> List.map Name.toTitleCase |> List.map (\var -> TS.Variable var)
                 , typeExpression = typeExp |> mapTypeExp
                 , decoder = Just (generateDecoderFunction variables name typeDef.access typeExp)
                 , encoder = Just (generateEncoderFunction variables name typeDef.access typeExp)
@@ -46,7 +46,7 @@ mapTypeDefinition name typeDef =
             let
                 tsVariables : List TS.TypeExp
                 tsVariables =
-                    variables |> List.map Name.toCamelCase |> List.map (\var -> TS.Variable var)
+                    variables |> List.map Name.toTitleCase |> List.map (\var -> TS.Variable var)
 
                 constructors =
                     accessControlledConstructors.value
@@ -104,7 +104,7 @@ mapConstructor privacy variables ( ctorName, ctorArgs ) =
     let
         tsVariables : List TS.TypeExp
         tsVariables =
-            variables |> List.map Name.toCamelCase |> List.map (\var -> TS.Variable var)
+            variables |> List.map Name.toTitleCase |> List.map (\var -> TS.Variable var)
 
         kindField : ( String, TS.TypeExp )
         kindField =
@@ -173,7 +173,7 @@ mapTypeExp tpe =
             TS.Tuple []
 
         Type.Variable _ name ->
-            TS.Variable (Name.toCamelCase name)
+            TS.Variable (Name.toTitleCase name)
 
         Type.ExtensibleRecord _ _ _ ->
             TS.UnhandledType "ExtensibleRecord"
