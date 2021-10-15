@@ -26,6 +26,11 @@ type alias ConstructorDetail a =
     }
 
 
+nameToDecodeString : Name -> String
+nameToDecodeString name =
+    ("decode" :: name) |> Name.toCamelCase
+
+
 getConstructorDetails : TS.Privacy -> ( Name, List ( Name, Type a ) ) -> ConstructorDetail a
 getConstructorDetails privacy ( ctorName, ctorArgs ) =
     let
@@ -107,6 +112,18 @@ mapTypeDefinition name typeDef =
                     accessControlledConstructors.value
                         |> Dict.keys
 
+                unionExpressionFromConstructorDetails : List (ConstructorDetail a) -> TS.TypeExp
+                unionExpressionFromConstructorDetails constructors =
+                    TS.Union
+                        (constructors
+                            |> List.map
+                                (\constructor ->
+                                    TS.TypeRef
+                                        (FQName.fQName [] [] constructor.name)
+                                        (constructor.typeVariableNames |> List.map (Name.toTitleCase >> TS.Variable))
+                                )
+                        )
+
                 union =
                     if List.all ((==) name) constructorNames then
                         []
@@ -118,17 +135,8 @@ mapTypeDefinition name typeDef =
                                 , privacy = privacy
                                 , doc = doc
                                 , variables = tsVariables
-                                , typeExpression =
-                                    TS.Union
-                                        (constructorDetails
-                                            |> List.map
-                                                (\constructor ->
-                                                    TS.TypeRef
-                                                        (FQName.fQName [] [] constructor.name)
-                                                        (constructor.typeVariableNames |> List.map (Name.toTitleCase >> TS.Variable))
-                                                )
-                                        )
-                                , decoder = Just (generateUnionDecoderFunction privacy variables name constructorNames)
+                                , typeExpression = unionExpressionFromConstructorDetails constructorDetails
+                                , decoder = Just (generateUnionDecoderFunction name privacy variables constructorDetails)
                                 , encoder = Nothing
                                 }
                             )
@@ -317,10 +325,7 @@ decoderExpression typeVars typeExp =
 
         Type.Variable _ varName ->
             { function =
-                TS.MemberExpression
-                    { object = TS.Identifier "varDecoders"
-                    , member = TS.Identifier (varName |> Name.toTitleCase)
-                    }
+                TS.Identifier ("decode" ++ (varName |> Name.toTitleCase))
             , params = []
             }
 
@@ -360,10 +365,14 @@ generateDecoderFunction variables typeName access typeExp =
         addInputParameter : TS.CallExpression -> TS.CallExpression
         addInputParameter oldcall =
             { oldcall | params = call.params ++ [ TS.Identifier "input" ] }
+
+        variableParameters : List String
+        variableParameters =
+            variables |> List.map (Name.toTitleCase >> (\name -> "decode" ++ name))
     in
     TS.FunctionDeclaration
         { name = "decode" ++ (typeName |> Name.toTitleCase)
-        , parameters = [ "varDecoders", "input" ]
+        , parameters = variableParameters ++ [ "input" ]
         , privacy = access |> mapPrivacy
         , body = [ TS.ReturnStatement (call |> addInputParameter |> TS.Call) ]
         }
@@ -372,6 +381,12 @@ generateDecoderFunction variables typeName access typeExp =
 generateConstructorDecoderFunction : ConstructorDetail ta -> TS.Statement
 generateConstructorDecoderFunction constructor =
     let
+        decoderParams : List String
+        decoderParams =
+            constructor.typeVariableNames
+                |> List.map Name.toTitleCase
+                |> List.map (\name -> "decode" ++ name)
+
         kindParam =
             TS.StringLiteralExpression (constructor.name |> Name.toTitleCase)
 
@@ -407,20 +422,26 @@ generateConstructorDecoderFunction constructor =
     TS.FunctionDeclaration
         { name = "decode" ++ (constructor.name |> Name.toTitleCase)
         , privacy = constructor.privacy
-        , parameters = [ "varDecoders", "input" ]
+        , parameters = decoderParams ++ [ "input" ]
         , body = [ TS.ReturnStatement call ]
         }
 
 
-generateUnionDecoderFunction : TS.Privacy -> TypeVariablesList -> Name -> List Name -> TS.Statement
-generateUnionDecoderFunction privacy variables typeName constructorNames =
+generateUnionDecoderFunction : Name -> TS.Privacy -> List Name -> List (ConstructorDetail ta) -> TS.Statement
+generateUnionDecoderFunction typeName privacy typeVariables constructors =
     let
+        decoderParams : List String
+        decoderParams =
+            typeVariables
+                |> List.map Name.toTitleCase
+                |> List.map (\name -> "decode" ++ name)
+
         letStatement : TS.Statement
         letStatement =
             TS.LetStatement "decoderMap" (TS.NewExpression { constructor = "Map", arguments = [] })
 
-        getMapSetStatement : Name -> TS.Statement
-        getMapSetStatement name =
+        getMapSetStatement : ConstructorDetail ta -> TS.Statement
+        getMapSetStatement constructor =
             TS.ExpressionStatement
                 (TS.Call
                     { function =
@@ -429,14 +450,14 @@ generateUnionDecoderFunction privacy variables typeName constructorNames =
                             , member = TS.Identifier "set"
                             }
                     , params =
-                        [ TS.StringLiteralExpression (name |> Name.toTitleCase)
+                        [ TS.StringLiteralExpression (constructor.name |> Name.toTitleCase)
                         , TS.Call
                             { function =
                                 TS.MemberExpression
-                                    { object = TS.Identifier ("decode" ++ (name |> Name.toTitleCase))
+                                    { object = TS.Identifier ("decode" ++ (constructor.name |> Name.toTitleCase))
                                     , member = TS.Identifier "bind"
                                     }
-                            , params = [ TS.Identifier "varDecoders" ]
+                            , params = constructor.typeVariableNames |> List.map (nameToDecodeString >> TS.Identifier)
                             }
                         ]
                     }
@@ -444,7 +465,7 @@ generateUnionDecoderFunction privacy variables typeName constructorNames =
 
         mapSetStatements : List TS.Statement
         mapSetStatements =
-            constructorNames |> List.map getMapSetStatement
+            constructors |> List.map getMapSetStatement
 
         finalStatement : TS.Statement
         finalStatement =
@@ -465,7 +486,7 @@ generateUnionDecoderFunction privacy variables typeName constructorNames =
     TS.FunctionDeclaration
         { name = "decode" ++ (typeName |> Name.toTitleCase)
         , privacy = privacy
-        , parameters = [ "varDecoders", "input" ]
+        , parameters = decoderParams ++ [ "input" ]
         , body =
             List.concat
                 [ [ letStatement ]
