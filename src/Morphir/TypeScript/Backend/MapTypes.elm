@@ -38,15 +38,7 @@ getConstructorDetails privacy ( ctorName, ctorArgs ) =
         typeVariables =
             ctorArgs
                 |> List.map Tuple.second
-                |> List.filter
-                    (\argType ->
-                        case argType of
-                            Type.Variable _ _ ->
-                                True
-
-                            _ ->
-                                False
-                    )
+                |> List.concatMap collectTypeVariables
     in
     { name = ctorName
     , privacy = privacy
@@ -65,6 +57,31 @@ getConstructorDetails privacy ( ctorName, ctorArgs ) =
                             []
                 )
     }
+
+
+collectTypeVariables : Type.Type a -> List (Type.Type a)
+collectTypeVariables typeExp =
+    case typeExp of
+        Type.Variable _ _ ->
+            [ typeExp ]
+
+        Type.Reference _ _ argTypes ->
+            argTypes |> List.concatMap collectTypeVariables
+
+        Type.Tuple _ valueTypes ->
+            valueTypes |> List.concatMap collectTypeVariables
+
+        Type.Record _ fieldTypes ->
+            fieldTypes |> List.concatMap (\field -> field.tpe |> collectTypeVariables)
+
+        Type.ExtensibleRecord _ _ fieldTypes ->
+            fieldTypes |> List.concatMap (\field -> field.tpe |> collectTypeVariables)
+
+        Type.Function _ argumentType returnType ->
+            [ argumentType, returnType ] |> List.concatMap collectTypeVariables
+
+        Type.Unit _ ->
+            []
 
 
 {-| Map a Morphir type definition into a list of TypeScript type definitions. The reason for returning a list is that
