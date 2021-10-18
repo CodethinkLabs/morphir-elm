@@ -114,22 +114,21 @@ export function decodeCustomTypeVariant(kind: string,
     return result;
 }
 
-// FIXME: dict are represented as arrays right now
-export function decodeDict<K,V>(decodeKey: (any) => K, decodeValue: (any) => V, input: any): Array<[K,V]> {
+export function decodeDict<K,V>(decodeKey: (any) => K, decodeValue: (any) => V, input: any): Map<K,V> {
     if (!(input instanceof Array)) {
         throw new DecodeError(`Expected array, got ${typeof(input)}`);
     }
 
     const inputArray: Array<any> = input;
 
-    return inputArray.map((item: any) => {
+    return new Map(inputArray.map((item: any) => {
         if (!(item instanceof Array)) {
             throw new DecodeError(`Expected array, got ${typeof(item)}`);
         }
 
         const itemArray: Array<any> = item;
         return [decodeKey(itemArray[0]), decodeValue(itemArray[1])];
-    });
+    }));
 }
 
 export function decodeList<T>(decodeElement: (any) => T,
@@ -233,8 +232,8 @@ export function encodeCustomTypeVariant(argNames: Array<string>,
 
 export function encodeDict<K,V>(encodeKey: (any) => K,
                                 encodeValue: (any) => V,
-                                value: Array<[K,V]>): Array<[K,V]> {
-    return value.map((pair: [K,V]): [K,V] => {
+                                value: Map<K,V>): Array<[K,V]> {
+    return Array.from(value.entries()).map((pair: [K,V]): [K,V] => {
         return [encodeKey(pair[0]), encodeValue(pair[1])];
     });
 }

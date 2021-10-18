@@ -30,9 +30,9 @@ describe('JSON codec', function() {
 
         let upName: Morphir.IR.Name.Name = ["up"]
 
-        let upConstructor: Morphir.IR.Type.Constructors<[]> = [
+        let upConstructor: Morphir.IR.Type.Constructors<[]> = new Map([
             [upName, []]
-        ]
+        ])
 
         let directionAccessControlled: Morphir.IR.AccessControlled.AccessControlled<Morphir.IR.Type.Constructors<[]>> = {
             access: accessPublic,

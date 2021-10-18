@@ -261,7 +261,7 @@ mapTypeExp tpe =
             TS.String
 
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "dict" ] ], [ "dict" ] ) [ dictKeyType, dictValType ] ->
-            TS.List (TS.Tuple [ mapTypeExp dictKeyType, mapTypeExp dictValType ])
+            TS.Map (mapTypeExp dictKeyType) (mapTypeExp dictValType)
 
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "list" ] ], [ "list" ] ) [ listType ] ->
             TS.List (mapTypeExp listType)
