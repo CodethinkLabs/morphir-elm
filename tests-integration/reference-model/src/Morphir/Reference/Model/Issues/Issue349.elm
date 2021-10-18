@@ -4,7 +4,7 @@ module Morphir.Reference.Model.Issues.Issue349 exposing (..)
 type MyCustom dog cat pigeon
     = Foo Int dog
     | Bar Int cat
-    | Baz Int pigeon
+    | Baz Int dog pigeon
 
 
 type MyOtherCustom dog cat pigeon
