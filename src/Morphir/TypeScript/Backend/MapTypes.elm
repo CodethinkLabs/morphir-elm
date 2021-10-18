@@ -31,6 +31,11 @@ nameToDecodeString name =
     ("decode" :: name) |> Name.toCamelCase
 
 
+nameToEncodeString : Name -> String
+nameToEncodeString name =
+    ("encode" :: name) |> Name.toCamelCase
+
+
 getConstructorDetails : TS.Privacy -> ( Name, List ( Name, Type a ) ) -> ConstructorDetail a
 getConstructorDetails privacy ( ctorName, ctorArgs ) =
     let
@@ -154,7 +159,7 @@ mapTypeDefinition name typeDef =
                                 , variables = tsVariables
                                 , typeExpression = unionExpressionFromConstructorDetails constructorDetails
                                 , decoder = Just (generateUnionDecoderFunction name privacy variables constructorDetails)
-                                , encoder = Nothing
+                                , encoder = Just (generateUnionEncoderFunction name privacy variables constructorDetails)
                                 }
                             )
             in
@@ -194,7 +199,7 @@ mapConstructor constructor =
         , variables = constructor.typeVariableNames |> List.map (Name.toTitleCase >> TS.Variable)
         , fields = kindField :: otherFields
         , decoder = Just (generateConstructorDecoderFunction constructor)
-        , encoder = Nothing
+        , encoder = Just (generateConstructorEncoderFunction constructor)
         }
 
 
@@ -342,7 +347,7 @@ decoderExpression typeVars typeExp =
 
         Type.Variable _ varName ->
             { function =
-                TS.Identifier ("decode" ++ (varName |> Name.toTitleCase))
+                TS.Identifier (nameToDecodeString varName)
             , params = []
             }
 
@@ -385,7 +390,7 @@ generateDecoderFunction variables typeName access typeExp =
 
         variableParameters : List String
         variableParameters =
-            variables |> List.map (Name.toTitleCase >> (\name -> "decode" ++ name))
+            variables |> List.map nameToDecodeString
     in
     TS.FunctionDeclaration
         { name = "decode" ++ (typeName |> Name.toTitleCase)
@@ -576,10 +581,7 @@ encoderExpression typeVars typeExp =
 
         Type.Variable _ varName ->
             { function =
-                TS.MemberExpression
-                    { object = TS.Identifier "varEncoders"
-                    , member = TS.Identifier (varName |> Name.toCamelCase)
-                    }
+                TS.Identifier (nameToEncodeString varName)
             , params = []
             }
 
@@ -619,10 +621,128 @@ generateEncoderFunction variables typeName access typeExp =
         addValueParameter : TS.CallExpression -> TS.CallExpression
         addValueParameter oldcall =
             { oldcall | params = call.params ++ [ TS.Identifier "value" ] }
+
+        variableParameters : List String
+        variableParameters =
+            variables |> List.map nameToEncodeString
     in
     TS.FunctionDeclaration
         { name = "encode" ++ (typeName |> Name.toTitleCase)
-        , parameters = [ "varEncoders", "value" ]
+        , parameters = variableParameters ++ [ "value" ]
         , privacy = access |> mapPrivacy
         , body = [ TS.ReturnStatement (call |> addValueParameter |> TS.Call) ]
+        }
+
+
+generateConstructorEncoderFunction : ConstructorDetail ta -> TS.Statement
+generateConstructorEncoderFunction constructor =
+    let
+        encoderParams : List String
+        encoderParams =
+            constructor.typeVariableNames
+                |> List.map Name.toTitleCase
+                |> List.map (\name -> "encode" ++ name)
+
+        argNamesParam =
+            TS.ArrayLiteralExpression
+                (constructor.args
+                    |> List.map (Tuple.first >> Name.toCamelCase >> TS.StringLiteralExpression)
+                )
+
+        argEncodersParam =
+            TS.ArrayLiteralExpression
+                (constructor.args
+                    |> List.map Tuple.second
+                    |> List.map (bindEncoderExpression constructor.typeVariableNames)
+                    |> List.map TS.Call
+                )
+
+        valueParam =
+            TS.Identifier "value"
+
+        call : TS.Expression
+        call =
+            TS.Call
+                { function = genericCodec "encodeCustomTypeVariant"
+                , params =
+                    [ argNamesParam
+                    , argEncodersParam
+                    , valueParam
+                    ]
+                }
+    in
+    TS.FunctionDeclaration
+        { name = "encode" ++ (constructor.name |> Name.toTitleCase)
+        , privacy = constructor.privacy
+        , parameters = encoderParams ++ [ "value" ]
+        , body = [ TS.ReturnStatement call ]
+        }
+
+
+generateUnionEncoderFunction : Name -> TS.Privacy -> List Name -> List (ConstructorDetail ta) -> TS.Statement
+generateUnionEncoderFunction typeName privacy typeVariables constructors =
+    let
+        encoderParams : List String
+        encoderParams =
+            typeVariables
+                |> List.map Name.toTitleCase
+                |> List.map (\name -> "encode" ++ name)
+
+        letStatement : TS.Statement
+        letStatement =
+            TS.LetStatement "encoderMap" (TS.NewExpression { constructor = "Map", arguments = [] })
+
+        getMapSetStatement : ConstructorDetail ta -> TS.Statement
+        getMapSetStatement constructor =
+            TS.ExpressionStatement
+                (TS.Call
+                    { function =
+                        TS.MemberExpression
+                            { object = TS.Identifier "encoderMap"
+                            , member = TS.Identifier "set"
+                            }
+                    , params =
+                        [ TS.StringLiteralExpression (constructor.name |> Name.toTitleCase)
+                        , TS.Call
+                            { function =
+                                TS.MemberExpression
+                                    { object = TS.Identifier ("encode" ++ (constructor.name |> Name.toTitleCase))
+                                    , member = TS.Identifier "bind"
+                                    }
+                            , params = constructor.typeVariableNames |> List.map (nameToEncodeString >> TS.Identifier)
+                            }
+                        ]
+                    }
+                )
+
+        mapSetStatements : List TS.Statement
+        mapSetStatements =
+            constructors |> List.map getMapSetStatement
+
+        finalStatement : TS.Statement
+        finalStatement =
+            TS.ReturnStatement
+                (TS.Call
+                    { function =
+                        TS.MemberExpression
+                            { object = TS.Identifier "codecs"
+                            , member = TS.Identifier "encodeCustomType"
+                            }
+                    , params =
+                        [ TS.Identifier "encoderMap"
+                        , TS.Identifier "value"
+                        ]
+                    }
+                )
+    in
+    TS.FunctionDeclaration
+        { name = "encode" ++ (typeName |> Name.toTitleCase)
+        , privacy = privacy
+        , parameters = encoderParams ++ [ "value" ]
+        , body =
+            List.concat
+                [ [ letStatement ]
+                , mapSetStatements
+                , [ finalStatement ]
+                ]
         }

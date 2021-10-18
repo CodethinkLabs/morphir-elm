@@ -96,7 +96,7 @@ mapTypeDef opt typeDef =
                 , mapMaybeStatement encoder
                 ]
 
-        Interface { name, privacy, variables, fields, decoder } ->
+        Interface { name, privacy, variables, fields, decoder, encoder } ->
             concat
                 [ privacy |> exportIfPublic
                 , "interface "
@@ -107,6 +107,9 @@ mapTypeDef opt typeDef =
                 , newLine
                 , newLine
                 , mapMaybeStatement decoder
+                , newLine
+                , newLine
+                , mapMaybeStatement encoder
                 ]
 
         ImportAlias { name, privacy, namespacePath } ->

@@ -202,6 +202,10 @@ export function encodeFloat(value: number): number {
     return value;
 }
 
+export function encodeCustomType(encoderMap: EncoderMap, value: any): any {
+    return encoderMap.get(value["kind"])(value)
+}
+
 export function encodeCustomTypeVariant(argNames: Array<string>,
                                  argEncoders: EncoderList,
                                  value: object,): Array<any> {
@@ -237,7 +241,7 @@ export function encodeRecord(fieldEncoders: EncoderMap,
 
 export function encodeTuple(elementEncoders: EncoderList,
                             value: Array<any>): Array<any> {
-    let result = new Array;
+   let result = new Array;
     for (var i = 0; i < value.length; i++) {
         result.push(elementEncoders[i](value[i]));
     };
