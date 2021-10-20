@@ -1,6 +1,6 @@
 module Morphir.TypeScript.AST exposing
     ( TypeDef(..), TypeExp(..)
-    , CallExpression, CompilationUnit, Expression(..), ImportDeclaration, NamespacePath, ObjectExp, Privacy(..), Statement(..), emptyObject, namespaceNameFromPackageAndModule
+    , CallExpression, CompilationUnit, Expression(..), FunctionScope(..), ImportDeclaration, NamespacePath, ObjectExp, Privacy(..), Statement(..), emptyObject, namespaceNameFromPackageAndModule
     )
 
 {-| This module contains the TypeScript AST (Abstract Syntax Tree). The purpose of this AST is to make it easier to
@@ -16,7 +16,7 @@ that we use in the backend.
 -}
 
 import Morphir.IR.FQName exposing (FQName)
-import Morphir.IR.Name as Name exposing (Name)
+import Morphir.IR.Name as Name
 import Morphir.IR.Path exposing (Path)
 
 
@@ -87,14 +87,22 @@ emptyObject =
     ObjectLiteralExpression { properties = [] }
 
 
+type FunctionScope
+    = ModuleFunction
+    | ClassMemberFunction
+    | ClassStaticFunction
+
+
 type Statement
     = FunctionDeclaration
         { name : String
+        , scope : FunctionScope
         , parameters : List String
         , body : List Statement
         , privacy : Privacy
         }
     | LetStatement String Expression
+    | AssignmentStatement Expression Expression
     | ExpressionStatement Expression
     | ReturnStatement Expression
 
@@ -116,11 +124,12 @@ type TypeDef
         , decoder : Maybe Statement
         , encoder : Maybe Statement
         }
-    | Interface
+    | VariantClass
         { name : String
         , privacy : Privacy
         , variables : List TypeExp
         , fields : ObjectExp
+        , constructor : Maybe Statement
         , decoder : Maybe Statement
         , encoder : Maybe Statement
         }

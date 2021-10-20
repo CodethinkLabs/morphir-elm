@@ -101,10 +101,10 @@ collectRefsFromTypeDef typeDef =
                 , typeAlias.typeExpression |> collectRefsFromTypeExpression
                 ]
 
-        TS.Interface interface ->
+        TS.VariantClass variantClass ->
             List.concat
-                [ interface.variables |> List.concatMap collectRefsFromTypeExpression
-                , interface.fields |> List.concatMap (\( _, typeExp ) -> collectRefsFromTypeExpression typeExp)
+                [ variantClass.variables |> List.concatMap collectRefsFromTypeExpression
+                , variantClass.fields |> List.concatMap (\( _, typeExp ) -> collectRefsFromTypeExpression typeExp)
                 ]
 
         TS.ImportAlias importAlias ->

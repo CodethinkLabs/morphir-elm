@@ -9,7 +9,7 @@ representation.
 
 import Morphir.File.SourceCode exposing (Doc, concat, indentLines, newLine)
 import Morphir.IR.Path exposing (Path)
-import Morphir.TypeScript.AST exposing (CompilationUnit, Expression(..), ImportDeclaration, NamespacePath, Privacy(..), Statement(..), TypeDef(..), TypeExp(..))
+import Morphir.TypeScript.AST exposing (CompilationUnit, Expression(..), FunctionScope(..), ImportDeclaration, NamespacePath, Privacy(..), Statement(..), TypeDef(..), TypeExp(..))
 import Morphir.TypeScript.PrettyPrinter.MapExpressions exposing (..)
 
 
@@ -90,26 +90,43 @@ mapTypeDef opt typeDef =
                 , mapTypeExp opt typeExpression
                 , newLine
                 , newLine
-                , mapMaybeStatement decoder
+                , mapMaybeStatement opt decoder
                 , newLine
                 , newLine
-                , mapMaybeStatement encoder
+                , mapMaybeStatement opt encoder
                 ]
 
-        Interface { name, privacy, variables, fields, decoder, encoder } ->
+        VariantClass { name, privacy, variables, fields, constructor, decoder, encoder } ->
+            let
+                preface : String
+                preface =
+                    concat
+                        [ privacy |> exportIfPublic
+                        , "class "
+                        , name
+                        , mapGenericVariables opt variables
+                        , " {"
+                        ]
+
+                body : List String
+                body =
+                    [ fields |> List.map (mapField opt) >> String.join newLine
+                    , newLine
+                    , mapMaybeStatement opt constructor
+                    ]
+            in
             concat
-                [ privacy |> exportIfPublic
-                , "interface "
-                , name
-                , mapGenericVariables opt variables
-                , " "
-                , mapObjectExp opt fields
+                [ preface
+                , newLine
+                , body |> indentLines opt.indentDepth
+                , "}"
                 , newLine
                 , newLine
-                , mapMaybeStatement decoder
+                , mapMaybeStatement opt decoder
                 , newLine
                 , newLine
-                , mapMaybeStatement encoder
+                , mapMaybeStatement opt encoder
+                , newLine
                 ]
 
         ImportAlias { name, privacy, namespacePath } ->
@@ -186,29 +203,46 @@ mapExpression expression =
                 ]
 
 
-mapMaybeStatement : Maybe Statement -> String
-mapMaybeStatement maybeStatement =
+mapMaybeStatement : Options -> Maybe Statement -> String
+mapMaybeStatement opt maybeStatement =
     case maybeStatement of
         Just statement ->
-            mapStatement statement
+            mapStatement opt statement
 
         Nothing ->
             ""
 
 
-mapStatement : Statement -> String
-mapStatement statement =
+mapStatement : Options -> Statement -> String
+mapStatement opt statement =
     case statement of
-        FunctionDeclaration { name, parameters, body, privacy } ->
+        FunctionDeclaration { name, scope, parameters, body, privacy } ->
+            let
+                prefaceKeywords : String
+                prefaceKeywords =
+                    case scope of
+                        ModuleFunction ->
+                            concat
+                                [ privacy |> exportIfPublic
+                                , "function "
+                                ]
+
+                        ClassStaticFunction ->
+                            concat
+                                [ "static "
+                                ]
+
+                        _ ->
+                            ""
+            in
             concat
-                [ privacy |> exportIfPublic
-                , "function "
+                [ prefaceKeywords
                 , name
                 , "("
                 , String.join ", " parameters
                 , ") {"
                 , newLine
-                , String.join newLine (List.map mapStatement body)
+                , body |> List.map (mapStatement opt) |> indentLines opt.indentDepth
                 , newLine
                 , "}"
                 ]
@@ -218,6 +252,9 @@ mapStatement statement =
 
         LetStatement lhsString rhsExpression ->
             concat [ "let ", lhsString, " = ", mapExpression rhsExpression, ";" ]
+
+        AssignmentStatement lhsExpression rhsExpression ->
+            concat [ mapExpression lhsExpression, " = ", mapExpression rhsExpression ]
 
         ExpressionStatement expression ->
             concat [ mapExpression expression, ";" ]
