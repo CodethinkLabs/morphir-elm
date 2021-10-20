@@ -150,6 +150,7 @@ async function testIntegrationBuildScala(cb) {
     }
 }
 
+// Generate TypeScript API for reference model.
 async function testIntegrationGenTypeScript(cb) {
     await morphirElmGen(
         './tests-integration/generated/refModel/morphir-ir.json',
@@ -157,10 +158,10 @@ async function testIntegrationGenTypeScript(cb) {
         'TypeScript')
 }
 
-function testIntegrationBuildTypeScript(cb) {
-    return src('tests-integration/generated/refModel/src/typescript/**/*.ts')
-        .pipe(tsProject)
-        .pipe(dest('tests-integration/generated/refModel/src/typescript/output'));
+// Compile generated Typescript API and run integration tests.
+function testIntegrationTestTypeScript(cb) {
+    return src('tests-integration/typescript/TypesTest-refModel.ts')
+        .pipe(mocha({ require: 'ts-node/register' }));
 }
 
 const testIntegration = series(
@@ -174,7 +175,7 @@ const testIntegration = series(
             ),
             series(
                 testIntegrationGenTypeScript,
-                testIntegrationBuildTypeScript,
+                testIntegrationTestTypeScript,
             ),
         )
     )
