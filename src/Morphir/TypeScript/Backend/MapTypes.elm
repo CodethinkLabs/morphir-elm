@@ -5,13 +5,13 @@ into TypeScript.
 -}
 
 import Dict
-import Set exposing (Set)
 import Morphir.IR.AccessControlled exposing (Access(..), AccessControlled)
 import Morphir.IR.Documented exposing (Documented)
 import Morphir.IR.FQName as FQName exposing (FQName)
 import Morphir.IR.Name as Name exposing (Name)
 import Morphir.IR.Type as Type exposing (Type)
 import Morphir.TypeScript.AST as TS
+import Set exposing (Set)
 
 
 type alias TypeVariablesList =
@@ -91,7 +91,9 @@ collectTypeVariables typeExp =
             []
 
 
-type alias TypeList a = List (Type.Type a)
+type alias TypeList a =
+    List (Type.Type a)
+
 
 deduplicateTypeVariables : TypeList a -> TypeList a
 deduplicateTypeVariables list =
@@ -107,12 +109,16 @@ deduplicateTypeVariables list =
                         Type.Variable _ name ->
                             if Set.member (Name.toTitleCase name) seen then
                                 compareAndReturn seen rest result
+
                             else
-                                item :: compareAndReturn
-                                    (Set.insert (Name.toTitleCase name) seen)
-                                    remaining
-                                    result
-                        _ -> []
+                                item
+                                    :: compareAndReturn
+                                        (Set.insert (Name.toTitleCase name) seen)
+                                        remaining
+                                        result
+
+                        _ ->
+                            []
     in
     compareAndReturn Set.empty list []
 
@@ -221,11 +227,12 @@ mapConstructor constructor =
                         ( argName |> Name.toCamelCase, mapTypeExp argType )
                     )
     in
-    TS.Interface
+    TS.VariantClass
         { name = constructor.name |> Name.toTitleCase
         , privacy = constructor.privacy
         , variables = constructor.typeVariableNames |> List.map (Name.toTitleCase >> TS.Variable)
         , fields = kindField :: otherFields
+        , constructor = Just (generateConstructorConstructorFunction constructor)
         , decoder = Just (generateConstructorDecoderFunction constructor)
         , encoder = Just (generateConstructorEncoderFunction constructor)
         }
@@ -312,7 +319,8 @@ arrayToMap array =
 decoderExpression : TypeVariablesList -> Type.Type a -> TS.CallExpression
 decoderExpression typeVars typeExp =
     let
-        inputParam = TS.Identifier "input"
+        inputParam =
+            TS.Identifier "input"
     in
     case typeExp of
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "basics" ] ], [ "bool" ] ) [] ->
@@ -387,11 +395,14 @@ decoderExpression typeVars typeExp =
 
         Type.Reference _ fQName argTypes ->
             let
-                decoderName = "decode" ++ (FQName.getLocalName fQName |> Name.toTitleCase)
-                varDecoders = argTypes |> List.map (bindDecoderExpression typeVars >> TS.Call)
+                decoderName =
+                    "decode" ++ (FQName.getLocalName fQName |> Name.toTitleCase)
+
+                varDecoders =
+                    argTypes |> List.map (bindDecoderExpression typeVars >> TS.Call)
             in
             { function = referenceCodec fQName decoderName
-            , params = varDecoders ++ [inputParam]
+            , params = varDecoders ++ [ inputParam ]
             }
 
         Type.Unit _ ->
@@ -411,6 +422,7 @@ bindDecoderExpression variables typeExp =
     let
         expression =
             decoderExpression variables typeExp
+
         removeInputParam params =
             params |> List.take (List.length params - 1)
     in
@@ -436,6 +448,7 @@ generateDecoderFunction variables typeName access typeExp =
     in
     TS.FunctionDeclaration
         { name = "decode" ++ (typeName |> Name.toTitleCase)
+        , scope = TS.ModuleFunction
         , parameters = variableParameters ++ [ "input" ]
         , privacy = access |> mapPrivacy
         , body = [ TS.ReturnStatement (TS.Call call) ]
@@ -485,6 +498,7 @@ generateConstructorDecoderFunction constructor =
     in
     TS.FunctionDeclaration
         { name = "decode" ++ (constructor.name |> Name.toTitleCase)
+        , scope = TS.ModuleFunction
         , privacy = constructor.privacy
         , parameters = decoderParams ++ [ "input" ]
         , body = [ TS.ReturnStatement call ]
@@ -549,6 +563,7 @@ generateUnionDecoderFunction typeName privacy typeVariables constructors =
     in
     TS.FunctionDeclaration
         { name = "decode" ++ (typeName |> Name.toTitleCase)
+        , scope = TS.ModuleFunction
         , privacy = privacy
         , parameters = decoderParams ++ [ "input" ]
         , body =
@@ -563,7 +578,8 @@ generateUnionDecoderFunction typeName privacy typeVariables constructors =
 encoderExpression : TypeVariablesList -> Type.Type a -> TS.CallExpression
 encoderExpression typeVars typeExp =
     let
-        valueParam = TS.Identifier "value"
+        valueParam =
+            TS.Identifier "value"
     in
     case typeExp of
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "basics" ] ], [ "bool" ] ) [] ->
@@ -586,6 +602,7 @@ encoderExpression typeVars typeExp =
             , params =
                 {--encodeKey --}
                 [ TS.Call (bindEncoderExpression typeVars dictKeyType)
+
                 {--encodeValue --}
                 , TS.Call (bindEncoderExpression typeVars dictValType)
                 , valueParam
@@ -637,8 +654,11 @@ encoderExpression typeVars typeExp =
 
         Type.Reference _ fQName argTypes ->
             let
-                decoderName = "encode" ++ (FQName.getLocalName fQName |> Name.toTitleCase)
-                varEncoders = argTypes |> List.map (bindEncoderExpression typeVars >> TS.Call)
+                decoderName =
+                    "encode" ++ (FQName.getLocalName fQName |> Name.toTitleCase)
+
+                varEncoders =
+                    argTypes |> List.map (bindEncoderExpression typeVars >> TS.Call)
             in
             { function = referenceCodec fQName decoderName
             , params = varEncoders ++ [ valueParam ]
@@ -661,6 +681,7 @@ bindEncoderExpression variables typeExp =
     let
         expression =
             encoderExpression variables typeExp
+
         removeValueParam params =
             params |> List.take (List.length params - 1)
     in
@@ -685,6 +706,7 @@ generateEncoderFunction variables typeName access typeExp =
     in
     TS.FunctionDeclaration
         { name = "encode" ++ (typeName |> Name.toTitleCase)
+        , scope = TS.ModuleFunction
         , parameters = variableParameters ++ [ "value" ]
         , privacy = access |> mapPrivacy
         , body = [ TS.ReturnStatement (call |> TS.Call) ]
@@ -730,6 +752,7 @@ generateConstructorEncoderFunction constructor =
     in
     TS.FunctionDeclaration
         { name = "encode" ++ (constructor.name |> Name.toTitleCase)
+        , scope = TS.ModuleFunction
         , privacy = constructor.privacy
         , parameters = encoderParams ++ [ "value" ]
         , body = [ TS.ReturnStatement call ]
@@ -794,6 +817,7 @@ generateUnionEncoderFunction typeName privacy typeVariables constructors =
     in
     TS.FunctionDeclaration
         { name = "encode" ++ (typeName |> Name.toTitleCase)
+        , scope = TS.ModuleFunction
         , privacy = privacy
         , parameters = encoderParams ++ [ "value" ]
         , body =
@@ -802,4 +826,30 @@ generateUnionEncoderFunction typeName privacy typeVariables constructors =
                 , mapSetStatements
                 , [ finalStatement ]
                 ]
+        }
+
+
+generateConstructorConstructorFunction : ConstructorDetail ta -> TS.Statement
+generateConstructorConstructorFunction { name, privacy, args, typeVariables, typeVariableNames } =
+    let
+        argNames : List String
+        argNames =
+            args |> List.map (Tuple.first >> Name.toCamelCase)
+
+        assignProperty : String -> TS.Statement
+        assignProperty argName =
+            TS.AssignmentStatement
+                (TS.MemberExpression
+                    { object = TS.Identifier "this"
+                    , member = TS.Identifier argName
+                    }
+                )
+                (TS.Identifier argName)
+    in
+    TS.FunctionDeclaration
+        { name = "constructor"
+        , scope = TS.ClassMemberFunction
+        , privacy = privacy
+        , parameters = argNames
+        , body = argNames |> List.map assignProperty
         }
