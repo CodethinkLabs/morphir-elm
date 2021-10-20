@@ -5,6 +5,7 @@
   "scripts": {
     "clean": "gulp clean",
     "test": "gulp test",
+    "test-morphir-ir-typescript": "gulp testMorphirIRTypeScript",
     "insight-server-live": "cd cli && elm-live src/Morphir/Web/Insight.elm --start-page=./web/insight.html --dir=./web --proxy-prefix /server --proxy-host http://localhost:3000/server -- --output=web/insight.js",
     "dev-server-live": "cd cli && elm-live src/Morphir/Web/DevelopApp.elm --dir=web --pushstate --proxy-prefix /server --proxy-host http://localhost:3000/server -- --output=web/index.html",
     "try-morphir-live": "cd cli && elm-live src/Morphir/Web/TryMorphir.elm",

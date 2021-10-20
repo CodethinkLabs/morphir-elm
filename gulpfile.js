@@ -9,7 +9,9 @@ const http = require('isomorphic-git/http/node')
 const del = require('del')
 const elmMake = require('node-elm-compiler').compile
 const execa = require('execa');
+const mocha = require('gulp-mocha');
 const ts = require('gulp-typescript');
+const tsProject = ts.createProject('./tsconfig.json')
 
 const config = {
     morphirJvmVersion: '0.7.1',
@@ -152,10 +154,8 @@ async function testIntegrationGenTypeScript(cb) {
 
 function testIntegrationBuildTypeScript(cb) {
     return src('tests-integration/generated/refModel/src/typescript/**/*.ts')
-        .pipe(ts({
-            outFile: 'output.js'
-        }))
-        .pipe(dest('tests-integration/generated/refModel/src/typescript/output.js'));
+        .pipe(tsProject)
+        .pipe(dest('tests-integration/generated/refModel/src/typescript/output'));
 }
 
 const testIntegration = series(
@@ -169,7 +169,7 @@ const testIntegration = series(
             ),
             series(
                 testIntegrationGenTypeScript,
-                //testIntegrationBuildTypeScript,
+                testIntegrationBuildTypeScript,
             ),
         )
     )
@@ -180,6 +180,7 @@ async function testMorphirIRMake(cb) {
         { typesOnly: true })
 }
 
+// Generate TypeScript API for Morphir.IR itself.
 async function testMorphirIRGenTypeScript(cb) {
     await morphirElmGen(
         './tests-integration/generated/morphirIR/morphir-ir.json',
@@ -187,18 +188,16 @@ async function testMorphirIRGenTypeScript(cb) {
         'TypeScript')
 }
 
-function testMorphirIRBuildTypeScript(cb) {
-    return src('tests-integration/generated/morphirIR/src/typescript/**/*.ts')
-        .pipe(ts({
-            outFile: 'output.js'
-        }))
-        .pipe(dest('tests-integration/generated/morphirIR/src/typescript/output.js'));
+// Compile generated Typescript API and run integration tests.
+function testMorphirIRTestTypeScript(cb) {
+    return src('tests-integration/typescript/CodecsTest-Morphir-IR.ts')
+        .pipe(mocha({ require: 'ts-node/register' }));
 }
 
 testMorphirIR = series(
     testMorphirIRMake,
     testMorphirIRGenTypeScript,
-    //testMorphirIRBuildTypeScript,
+    testMorphirIRTestTypeScript,
 )
 
 
@@ -216,6 +215,7 @@ exports.build = build;
 exports.test = test;
 exports.testIntegration = testIntegration;
 exports.testMorphirIR = testMorphirIR;
+exports.testMorphirIRTypeScript = testMorphirIR;
 exports.default =
     series(
         clean,
