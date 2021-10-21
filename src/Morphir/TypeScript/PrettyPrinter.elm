@@ -250,11 +250,24 @@ mapStatement opt statement =
         ReturnStatement expression ->
             concat [ "return ", mapExpression expression, ";" ]
 
-        LetStatement lhsString rhsExpression ->
-            concat [ "let ", lhsString, " = ", mapExpression rhsExpression, ";" ]
+        LetStatement lhsExpression maybeAnnotation rhsExpression ->
+            concat
+                [ "let "
+                , mapExpression lhsExpression
+                , mapMaybeAnnotation opt maybeAnnotation
+                , " = "
+                , mapExpression rhsExpression
+                , ";"
+                ]
 
-        AssignmentStatement lhsExpression rhsExpression ->
-            concat [ mapExpression lhsExpression, " = ", mapExpression rhsExpression, ";" ]
+        AssignmentStatement lhsExpression maybeAnnotation rhsExpression ->
+            concat
+                [ mapExpression lhsExpression
+                , mapMaybeAnnotation opt maybeAnnotation
+                , " = "
+                , mapExpression rhsExpression
+                , ";"
+                ]
 
         ExpressionStatement expression ->
             concat [ mapExpression expression, ";" ]
@@ -262,19 +275,19 @@ mapStatement opt statement =
 
 mapParameter : Options -> Parameter -> String
 mapParameter opt { modifiers, name, typeAnnotation } =
-    let
-        annotation : String
-        annotation =
-            case typeAnnotation of
-                Nothing ->
-                    ""
-
-                Just typeExp ->
-                    ": " ++ mapTypeExp opt typeExp
-    in
     concat
         [ modifiers |> String.join " "
         , " "
         , name
-        , annotation
+        , mapMaybeAnnotation opt typeAnnotation
         ]
+
+
+mapMaybeAnnotation : Options -> Maybe TypeExp -> String
+mapMaybeAnnotation opt maybeTypeExp =
+    case maybeTypeExp of
+        Nothing ->
+            ""
+
+        Just typeExp ->
+            ": " ++ mapTypeExp opt typeExp

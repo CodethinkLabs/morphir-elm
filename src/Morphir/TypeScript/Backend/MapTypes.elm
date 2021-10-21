@@ -537,7 +537,10 @@ generateUnionDecoderFunction typeName privacy typeVariables constructors =
 
         letStatement : TS.Statement
         letStatement =
-            TS.LetStatement "decoderMap" (TS.NewExpression { constructor = "Map", arguments = [] })
+            TS.LetStatement
+                (TS.Identifier "decoderMap")
+                Nothing
+                (TS.NewExpression { constructor = "Map", arguments = [] })
 
         getMapSetStatement : ConstructorDetail ta -> TS.Statement
         getMapSetStatement constructor =
@@ -811,7 +814,10 @@ generateUnionEncoderFunction typeName privacy typeVariables constructors =
 
         letStatement : TS.Statement
         letStatement =
-            TS.LetStatement "encoderMap" (TS.NewExpression { constructor = "Map", arguments = [] })
+            TS.LetStatement
+                (TS.Identifier "encoderMap")
+                Nothing
+                (TS.NewExpression { constructor = "Map", arguments = [] })
 
         getMapSetStatement : ConstructorDetail ta -> TS.Statement
         getMapSetStatement constructor =
@@ -893,6 +899,7 @@ generateConstructorConstructorFunction { name, privacy, args, typeVariables, typ
                     , member = TS.Identifier "kind"
                     }
                 )
+                Nothing
                 (TS.StringLiteralExpression (name |> Name.toTitleCase))
 
         assignProperty : String -> TS.Statement
@@ -903,6 +910,7 @@ generateConstructorConstructorFunction { name, privacy, args, typeVariables, typ
                     , member = TS.Identifier argName
                     }
                 )
+                Nothing
                 (TS.Identifier argName)
     in
     TS.FunctionDeclaration

@@ -113,8 +113,8 @@ type Statement
         , body : List Statement
         , privacy : Privacy
         }
-    | LetStatement String Expression
-    | AssignmentStatement Expression Expression
+    | LetStatement Expression (Maybe TypeExp) Expression
+    | AssignmentStatement Expression (Maybe TypeExp) Expression
     | ExpressionStatement Expression
     | ReturnStatement Expression
 
