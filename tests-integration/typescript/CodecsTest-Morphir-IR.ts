@@ -19,10 +19,10 @@ describe('JSON codec', function() {
 
         let encoded = Morphir.IR.FQName.encodeFQName(example);
         // Tuples and Lists encode to JSON without changes.
-        assert.deepStrictEqual(encoded, example);
+        assert.deepEqual(encoded, example);
 
         let decoded = Morphir.IR.FQName.decodeFQName(encoded);
-        assert.deepStrictEqual(decoded, example);
+        assert.deepEqual(decoded, example);
     })
 
     it('should roundtrip Record and Dict instances correctly', function() {
@@ -47,7 +47,7 @@ describe('JSON codec', function() {
             Morphir.IR.Type.decodeConstructors.bind(null, codecs.encodeUnit),
             encoded);
 
-        assert.deepStrictEqual(decoded, directionAccessControlled);
+        assert.deepEqual(decoded, directionAccessControlled);
     })
 
     it('should roundtrip `morphir-ir.json` correctly', function() {
@@ -62,7 +62,7 @@ describe('JSON codec', function() {
                     formatVersion: 2,
                     distribution: Morphir.IR.Distribution.encodeDistribution(decoded),
                 }
-                assert.deepStrictEqual(data, encoded);
+                assert.deepEqual(data, encoded);
             });
     })
 })

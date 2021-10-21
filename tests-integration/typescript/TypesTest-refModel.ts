@@ -53,7 +53,7 @@ describe('TypeScript type mapping', function() {
             new Morphir.Reference.Model.Types.LastName("Blessed"),
         );
 
-        assert.deepStrictEqual(fullName_Manual, fullName_ConstructorFn);
+        assert.deepEqual(fullName_Manual, fullName_ConstructorFn);
     })
 
     it('allows constructing records', function() {
