@@ -1,7 +1,4 @@
-module Morphir.TypeScript.AST exposing
-    ( TypeDef(..), TypeExp(..)
-    , CallExpression, CompilationUnit, Expression(..), FunctionScope(..), ImportDeclaration, NamespacePath, ObjectExp, Privacy(..), Statement(..), emptyObject, namespaceNameFromPackageAndModule
-    )
+module Morphir.TypeScript.AST exposing (..)
 
 {-| This module contains the TypeScript AST (Abstract Syntax Tree). The purpose of this AST is to make it easier to
 generate valid TypeScript source code and to separate the language syntax from low-level formatting concerns. We use
@@ -93,11 +90,26 @@ type FunctionScope
     | ClassStaticFunction
 
 
+type alias Parameter =
+    { modifiers : List String
+    , name : String
+    , typeAnnotation : Maybe TypeExp
+    }
+
+
+parameter : List String -> String -> Maybe TypeExp -> Parameter
+parameter modifiers name typeAnnotation =
+    { modifiers = modifiers
+    , name = name
+    , typeAnnotation = typeAnnotation
+    }
+
+
 type Statement
     = FunctionDeclaration
         { name : String
         , scope : FunctionScope
-        , parameters : List String
+        , parameters : List Parameter
         , body : List Statement
         , privacy : Privacy
         }

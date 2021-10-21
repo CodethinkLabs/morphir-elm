@@ -5,6 +5,7 @@ into TypeScript.
 -}
 
 import Dict
+import Maybe exposing (withDefault)
 import Morphir.IR.AccessControlled exposing (Access(..), AccessControlled)
 import Morphir.IR.Documented exposing (Documented)
 import Morphir.IR.FQName as FQName exposing (FQName)
@@ -442,14 +443,22 @@ generateDecoderFunction variables typeName access typeExp =
         call =
             decoderExpression variables typeExp
 
-        variableParameters : List String
+        variableParameters : List TS.Parameter
         variableParameters =
-            variables |> List.map nameToDecodeString
+            variables
+                |> List.map
+                    (\var ->
+                        TS.parameter [] (nameToDecodeString var) Nothing
+                    )
+
+        inputParameter : TS.Parameter
+        inputParameter =
+            TS.parameter [] "input" Nothing
     in
     TS.FunctionDeclaration
         { name = "decode" ++ (typeName |> Name.toTitleCase)
         , scope = TS.ModuleFunction
-        , parameters = variableParameters ++ [ "input" ]
+        , parameters = variableParameters ++ [ inputParameter ]
         , privacy = access |> mapPrivacy
         , body = [ TS.ReturnStatement (TS.Call call) ]
         }
@@ -458,11 +467,17 @@ generateDecoderFunction variables typeName access typeExp =
 generateConstructorDecoderFunction : ConstructorDetail ta -> TS.Statement
 generateConstructorDecoderFunction constructor =
     let
-        decoderParams : List String
+        decoderParams : List TS.Parameter
         decoderParams =
             constructor.typeVariableNames
-                |> List.map Name.toTitleCase
-                |> List.map (\name -> "decode" ++ name)
+                |> List.map
+                    (\var ->
+                        TS.parameter [] (nameToDecodeString var) Nothing
+                    )
+
+        inputParameter : TS.Parameter
+        inputParameter =
+            TS.parameter [] "input" Nothing
 
         kindParam =
             TS.StringLiteralExpression (constructor.name |> Name.toTitleCase)
@@ -500,7 +515,7 @@ generateConstructorDecoderFunction constructor =
         { name = "decode" ++ (constructor.name |> Name.toTitleCase)
         , scope = TS.ModuleFunction
         , privacy = constructor.privacy
-        , parameters = decoderParams ++ [ "input" ]
+        , parameters = decoderParams ++ [ inputParameter ]
         , body = [ TS.ReturnStatement call ]
         }
 
@@ -508,11 +523,17 @@ generateConstructorDecoderFunction constructor =
 generateUnionDecoderFunction : Name -> TS.Privacy -> List Name -> List (ConstructorDetail ta) -> TS.Statement
 generateUnionDecoderFunction typeName privacy typeVariables constructors =
     let
-        decoderParams : List String
+        decoderParams : List TS.Parameter
         decoderParams =
             typeVariables
-                |> List.map Name.toTitleCase
-                |> List.map (\name -> "decode" ++ name)
+                |> List.map
+                    (\var ->
+                        TS.parameter [] (nameToDecodeString var) Nothing
+                    )
+
+        inputParameter : TS.Parameter
+        inputParameter =
+            TS.parameter [] "input" Nothing
 
         letStatement : TS.Statement
         letStatement =
@@ -565,7 +586,7 @@ generateUnionDecoderFunction typeName privacy typeVariables constructors =
         { name = "decode" ++ (typeName |> Name.toTitleCase)
         , scope = TS.ModuleFunction
         , privacy = privacy
-        , parameters = decoderParams ++ [ "input" ]
+        , parameters = decoderParams ++ [ inputParameter ]
         , body =
             List.concat
                 [ [ letStatement ]
@@ -700,14 +721,22 @@ generateEncoderFunction variables typeName access typeExp =
         call =
             encoderExpression variables typeExp
 
-        variableParameters : List String
+        variableParameters : List TS.Parameter
         variableParameters =
-            variables |> List.map nameToEncodeString
+            variables
+                |> List.map
+                    (\var ->
+                        TS.parameter [] (nameToEncodeString var) Nothing
+                    )
+
+        valueparameter : TS.Parameter
+        valueparameter =
+            TS.parameter [] "value" Nothing
     in
     TS.FunctionDeclaration
         { name = "encode" ++ (typeName |> Name.toTitleCase)
         , scope = TS.ModuleFunction
-        , parameters = variableParameters ++ [ "value" ]
+        , parameters = variableParameters ++ [ valueparameter ]
         , privacy = access |> mapPrivacy
         , body = [ TS.ReturnStatement (call |> TS.Call) ]
         }
@@ -716,11 +745,17 @@ generateEncoderFunction variables typeName access typeExp =
 generateConstructorEncoderFunction : ConstructorDetail ta -> TS.Statement
 generateConstructorEncoderFunction constructor =
     let
-        encoderParams : List String
+        encoderParams : List TS.Parameter
         encoderParams =
             constructor.typeVariableNames
-                |> List.map Name.toTitleCase
-                |> List.map (\name -> "encode" ++ name)
+                |> List.map
+                    (\var ->
+                        TS.parameter [] (nameToEncodeString var) Nothing
+                    )
+
+        valueParameter : TS.Parameter
+        valueParameter =
+            TS.parameter [] "value" Nothing
 
         argNamesParam =
             TS.ArrayLiteralExpression
@@ -754,7 +789,7 @@ generateConstructorEncoderFunction constructor =
         { name = "encode" ++ (constructor.name |> Name.toTitleCase)
         , scope = TS.ModuleFunction
         , privacy = constructor.privacy
-        , parameters = encoderParams ++ [ "value" ]
+        , parameters = encoderParams ++ [ valueParameter ]
         , body = [ TS.ReturnStatement call ]
         }
 
@@ -762,11 +797,17 @@ generateConstructorEncoderFunction constructor =
 generateUnionEncoderFunction : Name -> TS.Privacy -> List Name -> List (ConstructorDetail ta) -> TS.Statement
 generateUnionEncoderFunction typeName privacy typeVariables constructors =
     let
-        encoderParams : List String
+        encoderParams : List TS.Parameter
         encoderParams =
             typeVariables
-                |> List.map Name.toTitleCase
-                |> List.map (\name -> "encode" ++ name)
+                |> List.map
+                    (\var ->
+                        TS.parameter [] (nameToEncodeString var) Nothing
+                    )
+
+        valueParameter : TS.Parameter
+        valueParameter =
+            TS.parameter [] "value" Nothing
 
         letStatement : TS.Statement
         letStatement =
@@ -819,7 +860,7 @@ generateUnionEncoderFunction typeName privacy typeVariables constructors =
         { name = "encode" ++ (typeName |> Name.toTitleCase)
         , scope = TS.ModuleFunction
         , privacy = privacy
-        , parameters = encoderParams ++ [ "value" ]
+        , parameters = encoderParams ++ [ valueParameter ]
         , body =
             List.concat
                 [ [ letStatement ]
@@ -835,6 +876,14 @@ generateConstructorConstructorFunction { name, privacy, args, typeVariables, typ
         argNames : List String
         argNames =
             args |> List.map (Tuple.first >> Name.toCamelCase)
+
+        argParams : List TS.Parameter
+        argParams =
+            args
+                |> List.map
+                    (\( argName, _ ) ->
+                        TS.parameter [] (argName |> Name.toCamelCase) Nothing
+                    )
 
         assignKind : TS.Statement
         assignKind =
@@ -860,6 +909,6 @@ generateConstructorConstructorFunction { name, privacy, args, typeVariables, typ
         { name = "constructor"
         , scope = TS.ClassMemberFunction
         , privacy = privacy
-        , parameters = argNames
+        , parameters = argParams
         , body = assignKind :: (argNames |> List.map assignProperty)
         }

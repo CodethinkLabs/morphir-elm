@@ -9,7 +9,7 @@ representation.
 
 import Morphir.File.SourceCode exposing (Doc, concat, indentLines, newLine)
 import Morphir.IR.Path exposing (Path)
-import Morphir.TypeScript.AST exposing (CompilationUnit, Expression(..), FunctionScope(..), ImportDeclaration, NamespacePath, Privacy(..), Statement(..), TypeDef(..), TypeExp(..))
+import Morphir.TypeScript.AST exposing (CompilationUnit, Expression(..), FunctionScope(..), ImportDeclaration, NamespacePath, Parameter, Privacy(..), Statement(..), TypeDef(..), TypeExp(..))
 import Morphir.TypeScript.PrettyPrinter.MapExpressions exposing (..)
 
 
@@ -239,7 +239,7 @@ mapStatement opt statement =
                 [ prefaceKeywords
                 , name
                 , "("
-                , String.join ", " parameters
+                , String.join ", " (parameters |> List.map (mapParameter opt))
                 , ") {"
                 , newLine
                 , body |> List.map (mapStatement opt) |> indentLines opt.indentDepth
@@ -258,3 +258,23 @@ mapStatement opt statement =
 
         ExpressionStatement expression ->
             concat [ mapExpression expression, ";" ]
+
+
+mapParameter : Options -> Parameter -> String
+mapParameter opt { modifiers, name, typeAnnotation } =
+    let
+        annotation : String
+        annotation =
+            case typeAnnotation of
+                Nothing ->
+                    ""
+
+                Just typeExp ->
+                    ": " ++ mapTypeExp opt typeExp
+    in
+    concat
+        [ modifiers |> String.join " "
+        , " "
+        , name
+        , annotation
+        ]
