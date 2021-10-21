@@ -7,7 +7,7 @@ const fs = require('fs')
 const util = require('util')
 const readFile = util.promisify(fs.readFile);
 
-const INPUT = 'morphir-ir.json'
+const INPUT = 'tests-integration/generated/morphirIR/morphir-ir.json'
 
 describe('JSON codec', function() {
     it('should roundtrip List and Tuple instances correctly', function() {
