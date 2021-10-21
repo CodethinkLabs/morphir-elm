@@ -836,6 +836,16 @@ generateConstructorConstructorFunction { name, privacy, args, typeVariables, typ
         argNames =
             args |> List.map (Tuple.first >> Name.toCamelCase)
 
+        assignKind : TS.Statement
+        assignKind =
+            TS.AssignmentStatement
+                (TS.MemberExpression
+                    { object = TS.Identifier "this"
+                    , member = TS.Identifier "kind"
+                    }
+                )
+                (TS.StringLiteralExpression (name |> Name.toTitleCase))
+
         assignProperty : String -> TS.Statement
         assignProperty argName =
             TS.AssignmentStatement
@@ -851,5 +861,5 @@ generateConstructorConstructorFunction { name, privacy, args, typeVariables, typ
         , scope = TS.ClassMemberFunction
         , privacy = privacy
         , parameters = argNames
-        , body = argNames |> List.map assignProperty
+        , body = assignKind :: (argNames |> List.map assignProperty)
         }
