@@ -216,26 +216,27 @@ mapPrivacy privacy =
 mapConstructor : ConstructorDetail ta -> TS.TypeDef
 mapConstructor constructor =
     let
-        kindField : ( String, TS.TypeExp )
-        kindField =
-            ( "kind", TS.LiteralString (constructor.name |> Name.toTitleCase) )
+        assignKind : TS.Statement
+        assignKind =
+            TS.AssignmentStatement
+                (TS.Identifier "kind")
+                (Just (TS.LiteralString (constructor.name |> Name.toTitleCase)))
+                (TS.StringLiteralExpression (constructor.name |> Name.toTitleCase))
 
-        otherFields : List ( String, TS.TypeExp )
-        otherFields =
+        typeExpressions : List TS.TypeExp
+        typeExpressions =
             constructor.args
-                |> List.map
-                    (\( argName, argType ) ->
-                        ( argName |> Name.toCamelCase, mapTypeExp argType )
-                    )
+                |> List.map (Tuple.second >> mapTypeExp)
     in
     TS.VariantClass
         { name = constructor.name |> Name.toTitleCase
         , privacy = constructor.privacy
         , variables = constructor.typeVariableNames |> List.map (Name.toTitleCase >> TS.Variable)
-        , fields = kindField :: otherFields
+        , body = [ assignKind ]
         , constructor = Just (generateConstructorConstructorFunction constructor)
         , decoder = Just (generateConstructorDecoderFunction constructor)
         , encoder = Just (generateConstructorEncoderFunction constructor)
+        , typeExpressions = typeExpressions
         }
 
 
@@ -879,44 +880,18 @@ generateUnionEncoderFunction typeName privacy typeVariables constructors =
 generateConstructorConstructorFunction : ConstructorDetail ta -> TS.Statement
 generateConstructorConstructorFunction { name, privacy, args, typeVariables, typeVariableNames } =
     let
-        argNames : List String
-        argNames =
-            args |> List.map (Tuple.first >> Name.toCamelCase)
-
         argParams : List TS.Parameter
         argParams =
             args
                 |> List.map
-                    (\( argName, _ ) ->
-                        TS.parameter [] (argName |> Name.toCamelCase) Nothing
+                    (\( argName, argType ) ->
+                        TS.parameter [ "public" ] (argName |> Name.toCamelCase) (Just (mapTypeExp argType))
                     )
-
-        assignKind : TS.Statement
-        assignKind =
-            TS.AssignmentStatement
-                (TS.MemberExpression
-                    { object = TS.Identifier "this"
-                    , member = TS.Identifier "kind"
-                    }
-                )
-                Nothing
-                (TS.StringLiteralExpression (name |> Name.toTitleCase))
-
-        assignProperty : String -> TS.Statement
-        assignProperty argName =
-            TS.AssignmentStatement
-                (TS.MemberExpression
-                    { object = TS.Identifier "this"
-                    , member = TS.Identifier argName
-                    }
-                )
-                Nothing
-                (TS.Identifier argName)
     in
     TS.FunctionDeclaration
         { name = "constructor"
         , scope = TS.ClassMemberFunction
         , privacy = privacy
         , parameters = argParams
-        , body = assignKind :: (argNames |> List.map assignProperty)
+        , body = []
         }

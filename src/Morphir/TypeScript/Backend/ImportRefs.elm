@@ -102,10 +102,8 @@ collectRefsFromTypeDef typeDef =
                 ]
 
         TS.VariantClass variantClass ->
-            List.concat
-                [ variantClass.variables |> List.concatMap collectRefsFromTypeExpression
-                , variantClass.fields |> List.concatMap (\( _, typeExp ) -> collectRefsFromTypeExpression typeExp)
-                ]
+            (variantClass.variables ++ variantClass.typeExpressions)
+                |> List.concatMap collectRefsFromTypeExpression
 
         TS.ImportAlias importAlias ->
             [ importAlias.namespacePath ]
