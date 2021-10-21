@@ -254,7 +254,7 @@ mapStatement opt statement =
             concat [ "let ", lhsString, " = ", mapExpression rhsExpression, ";" ]
 
         AssignmentStatement lhsExpression rhsExpression ->
-            concat [ mapExpression lhsExpression, " = ", mapExpression rhsExpression ]
+            concat [ mapExpression lhsExpression, " = ", mapExpression rhsExpression, ";" ]
 
         ExpressionStatement expression ->
             concat [ mapExpression expression, ";" ]
