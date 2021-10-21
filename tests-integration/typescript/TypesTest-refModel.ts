@@ -19,7 +19,6 @@ describe('TypeScript type mapping', function() {
 
         assert.equal(goodNoArg.kind, "CustomNoArg");
         assert.equal(goodNoArg_Explicit.kind, "CustomNoArg");
-
     })
 
     it('represents custom type unions', function() {
@@ -37,7 +36,7 @@ describe('TypeScript type mapping', function() {
         //
         //     const goodFullName = FullName(FirstName("Brian"), LastName("Blessed"));
         //
-        const goodFullName = {
+        const fullName_Manual: Morphir.Reference.Model.Types.FullName = {
             kind: "FullName",
             arg1: {
                 kind: "FirstName",
@@ -48,6 +47,13 @@ describe('TypeScript type mapping', function() {
                 arg1: "Blessed"
             }
         };
+
+        const fullName_ConstructorFn = new Morphir.Reference.Model.Types.FullName(
+            new Morphir.Reference.Model.Types.FirstName("Brian"),
+            new Morphir.Reference.Model.Types.LastName("Blessed"),
+        );
+
+        assert.deepStrictEqual(fullName_Manual, fullName_ConstructorFn);
     })
 
     it('allows constructing records', function() {

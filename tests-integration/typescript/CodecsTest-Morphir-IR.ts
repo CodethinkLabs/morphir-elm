@@ -26,7 +26,7 @@ describe('JSON codec', function() {
     })
 
     it('should roundtrip Record and Dict instances correctly', function() {
-        let accessPublic: Morphir.IR.AccessControlled.Public = { kind: "Public" }
+        let accessPublic = new Morphir.IR.AccessControlled.Public();
 
         let upName: Morphir.IR.Name.Name = ["up"]
 
