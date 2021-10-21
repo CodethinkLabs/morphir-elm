@@ -140,10 +140,11 @@ type TypeDef
         { name : String
         , privacy : Privacy
         , variables : List TypeExp
-        , fields : ObjectExp
+        , body : List Statement
         , constructor : Maybe Statement
         , decoder : Maybe Statement
         , encoder : Maybe Statement
+        , typeExpressions : List TypeExp -- for collecting import refs
         }
     | ImportAlias
         { name : String

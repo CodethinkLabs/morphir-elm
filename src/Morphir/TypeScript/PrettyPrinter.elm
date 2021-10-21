@@ -96,7 +96,7 @@ mapTypeDef opt typeDef =
                 , mapMaybeStatement opt encoder
                 ]
 
-        VariantClass { name, privacy, variables, fields, constructor, decoder, encoder } ->
+        VariantClass { name, privacy, variables, body, constructor, decoder, encoder } ->
             let
                 preface : String
                 preface =
@@ -108,9 +108,9 @@ mapTypeDef opt typeDef =
                         , " {"
                         ]
 
-                body : List String
-                body =
-                    [ fields |> List.map (mapField opt) >> String.join newLine
+                mainbody : List String
+                mainbody =
+                    [ body |> List.map (mapStatement opt) >> String.join newLine
                     , newLine
                     , mapMaybeStatement opt constructor
                     ]
@@ -118,7 +118,7 @@ mapTypeDef opt typeDef =
             concat
                 [ preface
                 , newLine
-                , body |> indentLines opt.indentDepth
+                , mainbody |> indentLines opt.indentDepth
                 , "}"
                 , newLine
                 , newLine
