@@ -294,8 +294,9 @@ mapTypeExp tpe =
             TS.UnhandledType "Function"
 
 
-genericCodec : String -> TS.Expression
-genericCodec function =
+{-- Reference a symbol in the Morphir.Internal.Codecs module. --}
+codecsModule : String -> TS.Expression
+codecsModule function =
     TS.MemberExpression
         { object = TS.Identifier "codecs"
         , member = TS.Identifier function
@@ -326,22 +327,22 @@ decoderExpression typeVars typeExp =
     in
     case typeExp of
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "basics" ] ], [ "bool" ] ) [] ->
-            { function = genericCodec "decodeBoolean", params = [ inputParam ] }
+            { function = codecsModule "decodeBoolean", params = [ inputParam ] }
 
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "basics" ] ], [ "float" ] ) [] ->
-            { function = genericCodec "decodeFloat", params = [ inputParam ] }
+            { function = codecsModule "decodeFloat", params = [ inputParam ] }
 
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "basics" ] ], [ "int" ] ) [] ->
-            { function = genericCodec "decodeInt", params = [ inputParam ] }
+            { function = codecsModule "decodeInt", params = [ inputParam ] }
 
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "char" ] ], [ "char" ] ) [] ->
-            { function = genericCodec "decodeChar", params = [ inputParam ] }
+            { function = codecsModule "decodeChar", params = [ inputParam ] }
 
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "string" ] ], [ "string" ] ) [] ->
-            { function = genericCodec "decodeString", params = [ inputParam ] }
+            { function = codecsModule "decodeString", params = [ inputParam ] }
 
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "dict" ] ], [ "dict" ] ) [ dictKeyType, dictValType ] ->
-            { function = genericCodec "decodeDict"
+            { function = codecsModule "decodeDict"
             , params =
                 {--decodeKey --}
                 [ TS.Call (bindDecoderExpression typeVars dictKeyType)
@@ -353,7 +354,7 @@ decoderExpression typeVars typeExp =
             }
 
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "list" ] ], [ "list" ] ) [ listType ] ->
-            { function = genericCodec "decodeList"
+            { function = codecsModule "decodeList"
             , params =
                 [ TS.Call (bindDecoderExpression typeVars listType)
                 , inputParam
@@ -361,7 +362,7 @@ decoderExpression typeVars typeExp =
             }
 
         Type.Record _ fieldList ->
-            { function = genericCodec "decodeRecord"
+            { function = codecsModule "decodeRecord"
             , params =
                 {--fieldDecoders --}
                 [ (fieldList
@@ -380,7 +381,7 @@ decoderExpression typeVars typeExp =
             }
 
         Type.Tuple _ tupleTypesList ->
-            { function = genericCodec "decodeTuple"
+            { function = codecsModule "decodeTuple"
             , params =
                 {--elementDecoders --}
                 [ TS.ArrayLiteralExpression
@@ -408,13 +409,13 @@ decoderExpression typeVars typeExp =
             }
 
         Type.Unit _ ->
-            { function = genericCodec "decodeUnit"
+            { function = codecsModule "decodeUnit"
             , params = [ inputParam ]
             }
 
         {--Unhandled types are treated as Unit --}
         _ ->
-            { function = genericCodec "decodeUnit"
+            { function = codecsModule "decodeUnit"
             , params = [ inputParam ]
             }
 
@@ -503,7 +504,7 @@ generateConstructorDecoderFunction constructor =
         call : TS.Expression
         call =
             TS.Call
-                { function = genericCodec "decodeCustomTypeVariant"
+                { function = codecsModule "decodeCustomTypeVariant"
                 , params =
                     [ kindParam
                     , argNamesParam
@@ -608,22 +609,22 @@ encoderExpression typeVars typeExp =
     in
     case typeExp of
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "basics" ] ], [ "bool" ] ) [] ->
-            { function = genericCodec "encodeBoolean", params = [ valueParam ] }
+            { function = codecsModule "encodeBoolean", params = [ valueParam ] }
 
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "basics" ] ], [ "float" ] ) [] ->
-            { function = genericCodec "encodeFloat", params = [ valueParam ] }
+            { function = codecsModule "encodeFloat", params = [ valueParam ] }
 
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "basics" ] ], [ "int" ] ) [] ->
-            { function = genericCodec "encodeInt", params = [ valueParam ] }
+            { function = codecsModule "encodeInt", params = [ valueParam ] }
 
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "char" ] ], [ "char" ] ) [] ->
-            { function = genericCodec "encodeChar", params = [ valueParam ] }
+            { function = codecsModule "encodeChar", params = [ valueParam ] }
 
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "string" ] ], [ "string" ] ) [] ->
-            { function = genericCodec "encodeString", params = [ valueParam ] }
+            { function = codecsModule "encodeString", params = [ valueParam ] }
 
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "dict" ] ], [ "dict" ] ) [ dictKeyType, dictValType ] ->
-            { function = genericCodec "encodeDict"
+            { function = codecsModule "encodeDict"
             , params =
                 {--encodeKey --}
                 [ TS.Call (bindEncoderExpression typeVars dictKeyType)
@@ -635,7 +636,7 @@ encoderExpression typeVars typeExp =
             }
 
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "list" ] ], [ "list" ] ) [ listType ] ->
-            { function = genericCodec "encodeList"
+            { function = codecsModule "encodeList"
             , params =
                 [ TS.Call (bindEncoderExpression typeVars listType)
                 , valueParam
@@ -643,7 +644,7 @@ encoderExpression typeVars typeExp =
             }
 
         Type.Record _ fieldList ->
-            { function = genericCodec "encodeRecord"
+            { function = codecsModule "encodeRecord"
             , params =
                 {--fieldEncoders --}
                 [ (fieldList
@@ -662,7 +663,7 @@ encoderExpression typeVars typeExp =
             }
 
         Type.Tuple _ tupleTypesList ->
-            { function = genericCodec "encodeTuple"
+            { function = codecsModule "encodeTuple"
             , params =
                 {--elementEncoders --}
                 [ TS.ArrayLiteralExpression
@@ -690,13 +691,13 @@ encoderExpression typeVars typeExp =
             }
 
         Type.Unit _ ->
-            { function = genericCodec "encodeUnit"
+            { function = codecsModule "encodeUnit"
             , params = [ valueParam ]
             }
 
         {--Unhandled types are treated as Unit --}
         _ ->
-            { function = genericCodec "encodeUnit"
+            { function = codecsModule "encodeUnit"
             , params = [ valueParam ]
             }
 
@@ -781,7 +782,7 @@ generateConstructorEncoderFunction constructor =
         call : TS.Expression
         call =
             TS.Call
-                { function = genericCodec "encodeCustomTypeVariant"
+                { function = codecsModule "encodeCustomTypeVariant"
                 , params =
                     [ argNamesParam
                     , argEncodersParam
