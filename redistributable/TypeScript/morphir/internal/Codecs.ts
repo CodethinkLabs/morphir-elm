@@ -25,6 +25,24 @@ type CodecFunction = (input: any) => any;
 type CodecList = Array<CodecFunction>;
 type CodecMap = Map<string, CodecFunction>;
 
+// Construct a codec map, avoiding spurious type errors.
+//
+// Calling `new Map([["field", codec]])` is problematic as the Map constructor
+// expects an array of tuples, but the TypeScript compiler cannot differentiate
+// between array and tuple literals and will default to array.
+//
+// For more info, see:
+//   * https://github.com/Microsoft/TypeScript/issues/3369
+//   * https://stackoverflow.com/a/53136686
+//
+export function buildCodecMap(entries: Array<[string, CodecFunction]>): CodecMap {
+  let map = new Map();
+  entries.forEach((pair) => {
+    map.set(pair[0], pair[1]);
+  });
+  return map;
+}
+
 export function decodeUnit(input: any): [] {
   return [];
 }

@@ -311,11 +311,11 @@ referenceCodec ( packageName, moduleName, _ ) codecName =
         }
 
 
-arrayToMap : TS.Expression -> TS.Expression
-arrayToMap array =
-    TS.NewExpression
-        { constructor = "Map"
-        , arguments = [ array ]
+buildCodecMap : TS.Expression -> TS.Expression
+buildCodecMap array =
+    TS.Call
+        { function = codecsModule "buildCodecMap"
+        , params = [ array ]
         }
 
 
@@ -375,7 +375,7 @@ decoderExpression typeVars typeExp =
                         )
                   )
                     |> TS.ArrayLiteralExpression
-                    |> arrayToMap
+                    |> buildCodecMap
                 , inputParam
                 ]
             }
@@ -537,67 +537,45 @@ generateUnionDecoderFunction typeName privacy typeVariables constructors =
         inputParameter =
             TS.parameter [] "input" Nothing
 
-        letStatement : TS.Statement
-        letStatement =
-            TS.LetStatement
-                (TS.Identifier "decoderMap")
-                Nothing
-                (TS.NewExpression { constructor = "Map", arguments = [] })
-
-        getMapSetStatement : ConstructorDetail ta -> TS.Statement
-        getMapSetStatement constructor =
-            TS.ExpressionStatement
-                (TS.Call
+        getCodecMapEntry : ConstructorDetail ta -> TS.Expression
+        getCodecMapEntry constructor =
+            TS.ArrayLiteralExpression
+                [ TS.StringLiteralExpression (constructor.name |> Name.toTitleCase)
+                , TS.Call
                     { function =
                         TS.MemberExpression
-                            { object = TS.Identifier "decoderMap"
-                            , member = TS.Identifier "set"
+                            { object = TS.Identifier ("decode" ++ (constructor.name |> Name.toTitleCase))
+                            , member = TS.Identifier "bind"
                             }
-                    , params =
-                        [ TS.StringLiteralExpression (constructor.name |> Name.toTitleCase)
-                        , TS.Call
-                            { function =
-                                TS.MemberExpression
-                                    { object = TS.Identifier ("decode" ++ (constructor.name |> Name.toTitleCase))
-                                    , member = TS.Identifier "bind"
-                                    }
-                            , params = TS.NullLiteral :: (constructor.typeVariableNames |> List.map (nameToDecodeString >> TS.Identifier))
-                            }
-                        ]
+                    , params = TS.NullLiteral :: (constructor.typeVariableNames |> List.map (nameToDecodeString >> TS.Identifier))
                     }
-                )
+                ]
 
-        mapSetStatements : List TS.Statement
-        mapSetStatements =
-            constructors |> List.map getMapSetStatement
+        codecMap : TS.Expression
+        codecMap =
+            constructors |> List.map getCodecMapEntry |>  TS.ArrayLiteralExpression |> buildCodecMap
 
-        finalStatement : TS.Statement
-        finalStatement =
-            TS.ReturnStatement
-                (TS.Call
-                    { function =
-                        TS.MemberExpression
-                            { object = TS.Identifier "codecs"
-                            , member = TS.Identifier "decodeCustomType"
-                            }
-                    , params =
-                        [ TS.Identifier "decoderMap"
-                        , TS.Identifier "input"
-                        ]
-                    }
-                )
+        call : TS.Expression
+        call =
+            TS.Call
+                { function =
+                    TS.MemberExpression
+                        { object = TS.Identifier "codecs"
+                        , member = TS.Identifier "decodeCustomType"
+                        }
+                , params =
+                    [ codecMap
+                    , TS.Identifier "input"
+                    ]
+                }
+
     in
     TS.FunctionDeclaration
         { name = "decode" ++ (typeName |> Name.toTitleCase)
         , scope = TS.ModuleFunction
         , privacy = privacy
         , parameters = decoderParams ++ [ inputParameter ]
-        , body =
-            List.concat
-                [ [ letStatement ]
-                , mapSetStatements
-                , [ finalStatement ]
-                ]
+        , body = [ TS.ReturnStatement call ]
         }
 
 
@@ -657,7 +635,7 @@ encoderExpression typeVars typeExp =
                         )
                   )
                     |> TS.ArrayLiteralExpression
-                    |> arrayToMap
+                    |> buildCodecMap
                 , valueParam
                 ]
             }
@@ -814,67 +792,45 @@ generateUnionEncoderFunction typeName privacy typeVariables constructors =
         valueParameter =
             TS.parameter [] "value" Nothing
 
-        letStatement : TS.Statement
-        letStatement =
-            TS.LetStatement
-                (TS.Identifier "encoderMap")
-                Nothing
-                (TS.NewExpression { constructor = "Map", arguments = [] })
-
-        getMapSetStatement : ConstructorDetail ta -> TS.Statement
-        getMapSetStatement constructor =
-            TS.ExpressionStatement
-                (TS.Call
+        getCodecMapEntry : ConstructorDetail ta -> TS.Expression
+        getCodecMapEntry constructor =
+            TS.ArrayLiteralExpression
+                [ TS.StringLiteralExpression (constructor.name |> Name.toTitleCase)
+                , TS.Call
                     { function =
                         TS.MemberExpression
-                            { object = TS.Identifier "encoderMap"
-                            , member = TS.Identifier "set"
+                            { object = TS.Identifier ("encode" ++ (constructor.name |> Name.toTitleCase))
+                            , member = TS.Identifier "bind"
                             }
-                    , params =
-                        [ TS.StringLiteralExpression (constructor.name |> Name.toTitleCase)
-                        , TS.Call
-                            { function =
-                                TS.MemberExpression
-                                    { object = TS.Identifier ("encode" ++ (constructor.name |> Name.toTitleCase))
-                                    , member = TS.Identifier "bind"
-                                    }
-                            , params = TS.NullLiteral :: (constructor.typeVariableNames |> List.map (nameToEncodeString >> TS.Identifier))
-                            }
-                        ]
+                    , params = TS.NullLiteral :: (constructor.typeVariableNames |> List.map (nameToEncodeString >> TS.Identifier))
                     }
-                )
+                ]
 
-        mapSetStatements : List TS.Statement
-        mapSetStatements =
-            constructors |> List.map getMapSetStatement
+        codecMap : TS.Expression
+        codecMap =
+            constructors |> List.map getCodecMapEntry |>  TS.ArrayLiteralExpression |> buildCodecMap
 
-        finalStatement : TS.Statement
-        finalStatement =
-            TS.ReturnStatement
-                (TS.Call
-                    { function =
-                        TS.MemberExpression
-                            { object = TS.Identifier "codecs"
-                            , member = TS.Identifier "encodeCustomType"
-                            }
-                    , params =
-                        [ TS.Identifier "encoderMap"
-                        , TS.Identifier "value"
-                        ]
-                    }
-                )
+        call : TS.Expression
+        call =
+            TS.Call
+                { function =
+                    TS.MemberExpression
+                        { object = TS.Identifier "codecs"
+                        , member = TS.Identifier "encodeCustomType"
+                        }
+                , params =
+                    [ codecMap
+                    , TS.Identifier "value"
+                    ]
+                }
+
     in
     TS.FunctionDeclaration
         { name = "encode" ++ (typeName |> Name.toTitleCase)
         , scope = TS.ModuleFunction
         , privacy = privacy
         , parameters = encoderParams ++ [ valueParameter ]
-        , body =
-            List.concat
-                [ [ letStatement ]
-                , mapSetStatements
-                , [ finalStatement ]
-                ]
+        , body = [ TS.ReturnStatement call ]
         }
 
 
