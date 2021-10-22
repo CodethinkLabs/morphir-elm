@@ -320,7 +320,7 @@ buildCodecMap array =
 
 
 decoderExpression : TypeVariablesList -> Type.Type a -> TS.CallExpression
-decoderExpression typeVars typeExp =
+decoderExpression customTypeVars typeExp =
     let
         inputParam =
             TS.Identifier "input"
@@ -345,10 +345,10 @@ decoderExpression typeVars typeExp =
             { function = codecsModule "decodeDict"
             , params =
                 {--decodeKey --}
-                [ TS.Call (bindDecoderExpression typeVars dictKeyType)
+                [ specificDecoderForType customTypeVars dictKeyType
 
                 {--decodeValue --}
-                , TS.Call (bindDecoderExpression typeVars dictValType)
+                , specificDecoderForType customTypeVars dictValType
                 , inputParam
                 ]
             }
@@ -356,7 +356,7 @@ decoderExpression typeVars typeExp =
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "list" ] ], [ "list" ] ) [ listType ] ->
             { function = codecsModule "decodeList"
             , params =
-                [ TS.Call (bindDecoderExpression typeVars listType)
+                [ specificDecoderForType customTypeVars listType
                 , inputParam
                 ]
             }
@@ -370,7 +370,7 @@ decoderExpression typeVars typeExp =
                         (\field ->
                             TS.ArrayLiteralExpression
                                 [ TS.StringLiteralExpression (Name.toCamelCase field.name)
-                                , TS.Call (bindDecoderExpression typeVars field.tpe)
+                                , specificDecoderForType customTypeVars field.tpe
                                 ]
                         )
                   )
@@ -385,7 +385,7 @@ decoderExpression typeVars typeExp =
             , params =
                 {--elementDecoders --}
                 [ TS.ArrayLiteralExpression
-                    (List.map (\item -> TS.Call (bindDecoderExpression typeVars item)) tupleTypesList)
+                    (List.map (specificDecoderForType customTypeVars) tupleTypesList)
                 , inputParam
                 ]
             }
@@ -402,7 +402,7 @@ decoderExpression typeVars typeExp =
                     "decode" ++ (FQName.getLocalName fQName |> Name.toTitleCase)
 
                 varDecoders =
-                    argTypes |> List.map (bindDecoderExpression typeVars >> TS.Call)
+                    argTypes |> List.map (specificDecoderForType customTypeVars)
             in
             { function = referenceCodec fQName decoderName
             , params = varDecoders ++ [ inputParam ]
@@ -420,22 +420,33 @@ decoderExpression typeVars typeExp =
             }
 
 
-bindDecoderExpression : TypeVariablesList -> Type.Type ta -> TS.CallExpression
-bindDecoderExpression variables typeExp =
+bindArgumentsToFunction : TS.Expression -> List TS.Expression -> TS.Expression
+bindArgumentsToFunction function args =
+    if List.isEmpty args then
+        function
+    else
+        TS.Call
+            { function =
+                TS.MemberExpression
+                    { object = function
+                    , member = TS.Identifier "bind"
+                    }
+            , params = TS.NullLiteral :: args
+            }
+
+
+specificDecoderForType : TypeVariablesList -> Type.Type ta -> TS.Expression
+specificDecoderForType customTypeVars typeExp =
     let
         expression =
-            decoderExpression variables typeExp
+            decoderExpression customTypeVars typeExp
 
         removeInputParam params =
             params |> List.take (List.length params - 1)
+
+        arguments = removeInputParam expression.params
     in
-    { function =
-        TS.MemberExpression
-            { object = expression.function
-            , member = TS.Identifier "bind"
-            }
-    , params = TS.NullLiteral :: removeInputParam expression.params
-    }
+    bindArgumentsToFunction expression.function arguments
 
 
 generateDecoderFunction : TypeVariablesList -> Name -> Access -> Type.Type ta -> TS.Statement
@@ -494,8 +505,7 @@ generateConstructorDecoderFunction constructor =
             TS.ArrayLiteralExpression
                 (constructor.args
                     |> List.map Tuple.second
-                    |> List.map (bindDecoderExpression constructor.typeVariableNames)
-                    |> List.map TS.Call
+                    |> List.map (specificDecoderForType constructor.typeVariableNames)
                 )
 
         inputParam =
@@ -541,14 +551,9 @@ generateUnionDecoderFunction typeName privacy typeVariables constructors =
         getCodecMapEntry constructor =
             TS.ArrayLiteralExpression
                 [ TS.StringLiteralExpression (constructor.name |> Name.toTitleCase)
-                , TS.Call
-                    { function =
-                        TS.MemberExpression
-                            { object = TS.Identifier ("decode" ++ (constructor.name |> Name.toTitleCase))
-                            , member = TS.Identifier "bind"
-                            }
-                    , params = TS.NullLiteral :: (constructor.typeVariableNames |> List.map (nameToDecodeString >> TS.Identifier))
-                    }
+                , bindArgumentsToFunction
+                    (constructor.name |> nameToDecodeString |> TS.Identifier)
+                    (constructor.typeVariableNames |> List.map (nameToDecodeString >> TS.Identifier))
                 ]
 
         codecMap : TS.Expression
@@ -580,7 +585,7 @@ generateUnionDecoderFunction typeName privacy typeVariables constructors =
 
 
 encoderExpression : TypeVariablesList -> Type.Type a -> TS.CallExpression
-encoderExpression typeVars typeExp =
+encoderExpression customTypeVars typeExp =
     let
         valueParam =
             TS.Identifier "value"
@@ -605,10 +610,10 @@ encoderExpression typeVars typeExp =
             { function = codecsModule "encodeDict"
             , params =
                 {--encodeKey --}
-                [ TS.Call (bindEncoderExpression typeVars dictKeyType)
+                [ specificEncoderForType customTypeVars dictKeyType
 
                 {--encodeValue --}
-                , TS.Call (bindEncoderExpression typeVars dictValType)
+                , specificEncoderForType customTypeVars dictValType
                 , valueParam
                 ]
             }
@@ -616,7 +621,7 @@ encoderExpression typeVars typeExp =
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "list" ] ], [ "list" ] ) [ listType ] ->
             { function = codecsModule "encodeList"
             , params =
-                [ TS.Call (bindEncoderExpression typeVars listType)
+                [ specificEncoderForType customTypeVars listType
                 , valueParam
                 ]
             }
@@ -630,7 +635,7 @@ encoderExpression typeVars typeExp =
                         (\field ->
                             TS.ArrayLiteralExpression
                                 [ TS.StringLiteralExpression (Name.toCamelCase field.name)
-                                , TS.Call (bindEncoderExpression typeVars field.tpe)
+                                , specificEncoderForType customTypeVars field.tpe
                                 ]
                         )
                   )
@@ -645,7 +650,7 @@ encoderExpression typeVars typeExp =
             , params =
                 {--elementEncoders --}
                 [ TS.ArrayLiteralExpression
-                    (List.map (\item -> TS.Call (bindEncoderExpression typeVars item)) tupleTypesList)
+                    (List.map (specificEncoderForType customTypeVars) tupleTypesList)
                 , valueParam
                 ]
             }
@@ -662,7 +667,7 @@ encoderExpression typeVars typeExp =
                     "encode" ++ (FQName.getLocalName fQName |> Name.toTitleCase)
 
                 varEncoders =
-                    argTypes |> List.map (bindEncoderExpression typeVars >> TS.Call)
+                    argTypes |> List.map (specificEncoderForType customTypeVars)
             in
             { function = referenceCodec fQName decoderName
             , params = varEncoders ++ [ valueParam ]
@@ -680,22 +685,18 @@ encoderExpression typeVars typeExp =
             }
 
 
-bindEncoderExpression : TypeVariablesList -> Type.Type ta -> TS.CallExpression
-bindEncoderExpression variables typeExp =
+specificEncoderForType : TypeVariablesList -> Type.Type ta -> TS.Expression
+specificEncoderForType customTypeVars typeExp =
     let
         expression =
-            encoderExpression variables typeExp
+            encoderExpression customTypeVars typeExp
 
         removeValueParam params =
             params |> List.take (List.length params - 1)
+
+        arguments = removeValueParam expression.params
     in
-    { function =
-        TS.MemberExpression
-            { object = expression.function
-            , member = TS.Identifier "bind"
-            }
-    , params = TS.NullLiteral :: removeValueParam expression.params
-    }
+    bindArgumentsToFunction expression.function arguments
 
 
 generateEncoderFunction : TypeVariablesList -> Name -> Access -> Type.Type ta -> TS.Statement
@@ -750,8 +751,7 @@ generateConstructorEncoderFunction constructor =
             TS.ArrayLiteralExpression
                 (constructor.args
                     |> List.map Tuple.second
-                    |> List.map (bindEncoderExpression constructor.typeVariableNames)
-                    |> List.map TS.Call
+                    |> List.map (specificEncoderForType constructor.typeVariableNames)
                 )
 
         valueParam =
@@ -796,14 +796,9 @@ generateUnionEncoderFunction typeName privacy typeVariables constructors =
         getCodecMapEntry constructor =
             TS.ArrayLiteralExpression
                 [ TS.StringLiteralExpression (constructor.name |> Name.toTitleCase)
-                , TS.Call
-                    { function =
-                        TS.MemberExpression
-                            { object = TS.Identifier ("encode" ++ (constructor.name |> Name.toTitleCase))
-                            , member = TS.Identifier "bind"
-                            }
-                    , params = TS.NullLiteral :: (constructor.typeVariableNames |> List.map (nameToEncodeString >> TS.Identifier))
-                    }
+                , bindArgumentsToFunction
+                    (constructor.name |> nameToEncodeString |> TS.Identifier)
+                    (constructor.typeVariableNames |> List.map (nameToEncodeString >> TS.Identifier))
                 ]
 
         codecMap : TS.Expression
