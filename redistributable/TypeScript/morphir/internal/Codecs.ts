@@ -20,14 +20,10 @@ Object.defineProperty(DecodeError.prototype, "name", {
   value: "DecodeError",
 });
 
-type GenericDecoder = (input: any) => any;
-type GenericEncoder = (input: any) => any;
+type CodecFunction = (input: any) => any;
 
-type DecoderList = Array<GenericDecoder>;
-type DecoderMap = Map<string, GenericDecoder>;
-
-type EncoderList = Array<GenericEncoder>;
-type EncoderMap = Map<string, GenericEncoder>;
+type CodecList = Array<CodecFunction>;
+type CodecMap = Map<string, CodecFunction>;
 
 export function decodeUnit(input: any): [] {
   return [];
@@ -71,7 +67,7 @@ export function decodeFloat(input: any): number {
   return input;
 }
 
-export function decodeCustomType(decoderMap: DecoderMap, input: any): object {
+export function decodeCustomType(decoderMap: CodecMap, input: any): object {
   if (typeof input == "string") input = [input];
   if (!(input instanceof Array)) {
     throw new DecodeError(`Expected Array, got ${typeof input}`);
@@ -92,7 +88,7 @@ export function decodeCustomType(decoderMap: DecoderMap, input: any): object {
 export function decodeCustomTypeVariant(
   kind: string,
   argNames: Array<string>,
-  argDecoders: DecoderList,
+  argDecoders: CodecList,
   input: any
 ): object {
   if (typeof input == "string") input = [input];
@@ -150,7 +146,7 @@ export function decodeList<T>(decodeElement: (any) => T, input: any): Array<T> {
   return inputArray.map(decodeElement);
 }
 
-export function decodeRecord(fieldDecoders: DecoderMap, input: any): object {
+export function decodeRecord(fieldDecoders: CodecMap, input: any): object {
   if (!(input instanceof Object)) {
     throw new DecodeError(`Expected Object, got ${typeof input}`);
   }
@@ -172,7 +168,7 @@ export function decodeRecord(fieldDecoders: DecoderMap, input: any): object {
   }
 
   var result = new Object();
-  fieldDecoders.forEach((decoder: GenericDecoder, name: string) => {
+  fieldDecoders.forEach((decoder: CodecFunction, name: string) => {
     if (!(name in inputObject)) {
       throw new DecodeError(`Input record object missing field: ${name}`);
     }
@@ -183,7 +179,7 @@ export function decodeRecord(fieldDecoders: DecoderMap, input: any): object {
 }
 
 export function decodeTuple(
-  elementDecoders: DecoderList,
+  elementDecoders: CodecList,
   input: any
 ): Array<any> {
   if (!(input instanceof Array)) {
@@ -222,7 +218,7 @@ export function encodeFloat(value: number): number {
   return value;
 }
 
-export function encodeCustomType(encoderMap: EncoderMap, value: any): any {
+export function encodeCustomType(encoderMap: CodecMap, value: any): any {
   if (encoderMap.has(value["kind"])) {
     const encoderFn: any = encoderMap.get(value["kind"]);
     return encoderFn(value);
@@ -235,7 +231,7 @@ export function encodeCustomType(encoderMap: EncoderMap, value: any): any {
 
 export function encodeCustomTypeVariant(
   argNames: Array<string>,
-  argEncoders: EncoderList,
+  argEncoders: CodecList,
   value: object
 ): Array<any> {
   if (argNames.length == 0) {
@@ -264,16 +260,16 @@ export function encodeList<T>(encodeElement: (any) => T, value: Array<T>) {
   return value.map(encodeElement);
 }
 
-export function encodeRecord(fieldEncoders: EncoderMap, value: object): object {
+export function encodeRecord(fieldEncoders: CodecMap, value: object): object {
   let result = new Object();
-  fieldEncoders.forEach((encoder: GenericEncoder, name: string) => {
+  fieldEncoders.forEach((encoder: CodecFunction, name: string) => {
     result[name] = encoder(value[name]);
   });
   return result;
 }
 
 export function encodeTuple(
-  elementEncoders: EncoderList,
+  elementEncoders: CodecList,
   value: Array<any>
 ): Array<any> {
   let result = new Array();
