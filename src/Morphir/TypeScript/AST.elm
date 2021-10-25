@@ -22,14 +22,18 @@ type alias CompilationUnit =
     }
 
 
-{-| Represents either a public or a private entity
--}
+type alias ImportDeclaration =
+    { importClause : String
+    , moduleSpecifier : String
+    }
+
+
 type Privacy
     = Public
     | Private
 
 
-type alias CallExpression =
+type alias CallExpressionDetails =
     { function : Expression
     , arguments : List Expression
     }
@@ -37,7 +41,7 @@ type alias CallExpression =
 
 type Expression
     = ArrayLiteralExpression (List Expression)
-    | Call CallExpression
+    | CallExpression CallExpressionDetails
     | Identifier String
     | MemberExpression
         { object : Expression
@@ -154,9 +158,3 @@ type TypeExp
 -}
 type alias ObjectExp =
     List ( String, TypeExp )
-
-
-type alias ImportDeclaration =
-    { importClause : String
-    , moduleSpecifier : String
-    }

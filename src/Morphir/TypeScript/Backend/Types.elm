@@ -315,14 +315,14 @@ referenceCodec ( packageName, moduleName, _ ) codecName =
 
 buildCodecMap : TS.Expression -> TS.Expression
 buildCodecMap array =
-    TS.Call
+    TS.CallExpression
         { function = codecsModule "buildCodecMap"
         , arguments = [ array ]
         }
 
 
-decoderExpression : TypeVariablesList -> Type.Type a -> TS.CallExpression
-decoderExpression customTypeVars typeExp =
+decoderCall : TypeVariablesList -> Type.Type a -> TS.CallExpressionDetails
+decoderCall customTypeVars typeExp =
     let
         inputArg =
             TS.Identifier "input"
@@ -428,7 +428,7 @@ bindArgumentsToFunction function args =
         function
 
     else
-        TS.Call
+        TS.CallExpression
             { function =
                 TS.MemberExpression
                     { object = function
@@ -442,7 +442,7 @@ specificDecoderForType : TypeVariablesList -> Type.Type ta -> TS.Expression
 specificDecoderForType customTypeVars typeExp =
     let
         expression =
-            decoderExpression customTypeVars typeExp
+            decoderCall customTypeVars typeExp
 
         removeInputArg arguments =
             arguments |> List.take (List.length arguments - 1)
@@ -453,9 +453,9 @@ specificDecoderForType customTypeVars typeExp =
 generateDecoderFunction : TypeVariablesList -> Name -> Access -> Type.Type ta -> TS.Statement
 generateDecoderFunction variables typeName access typeExp =
     let
-        call : TS.CallExpression
+        call : TS.CallExpressionDetails
         call =
-            decoderExpression variables typeExp
+            decoderCall variables typeExp
 
         variableParams : List TS.Parameter
         variableParams =
@@ -474,7 +474,7 @@ generateDecoderFunction variables typeName access typeExp =
         , scope = TS.ModuleFunction
         , parameters = variableParams ++ [ inputParam ]
         , privacy = access |> mapPrivacy
-        , body = [ TS.ReturnStatement (TS.Call call) ]
+        , body = [ TS.ReturnStatement (TS.CallExpression call) ]
         }
 
 
@@ -514,7 +514,7 @@ generateConstructorDecoderFunction constructor =
 
         call : TS.Expression
         call =
-            TS.Call
+            TS.CallExpression
                 { function = codecsModule "decodeCustomTypeVariant"
                 , arguments =
                     [ kind
@@ -563,7 +563,7 @@ generateUnionDecoderFunction typeName privacy typeVariables constructors =
 
         call : TS.Expression
         call =
-            TS.Call
+            TS.CallExpression
                 { function =
                     TS.MemberExpression
                         { object = TS.Identifier "codecs"
@@ -584,8 +584,8 @@ generateUnionDecoderFunction typeName privacy typeVariables constructors =
         }
 
 
-encoderExpression : TypeVariablesList -> Type.Type a -> TS.CallExpression
-encoderExpression customTypeVars typeExp =
+encoderCall : TypeVariablesList -> Type.Type a -> TS.CallExpressionDetails
+encoderCall customTypeVars typeExp =
     let
         valueArg =
             TS.Identifier "value"
@@ -689,7 +689,7 @@ specificEncoderForType : TypeVariablesList -> Type.Type ta -> TS.Expression
 specificEncoderForType customTypeVars typeExp =
     let
         expression =
-            encoderExpression customTypeVars typeExp
+            encoderCall customTypeVars typeExp
 
         removeValueArg arguments =
             arguments |> List.take (List.length arguments - 1)
@@ -701,7 +701,7 @@ generateEncoderFunction : TypeVariablesList -> Name -> Access -> Type.Type ta ->
 generateEncoderFunction variables typeName access typeExp =
     let
         call =
-            encoderExpression variables typeExp
+            encoderCall variables typeExp
 
         variableParams : List TS.Parameter
         variableParams =
@@ -720,7 +720,7 @@ generateEncoderFunction variables typeName access typeExp =
         , scope = TS.ModuleFunction
         , parameters = variableParams ++ [ valueParam ]
         , privacy = access |> mapPrivacy
-        , body = [ TS.ReturnStatement (call |> TS.Call) ]
+        , body = [ TS.ReturnStatement (call |> TS.CallExpression) ]
         }
 
 
@@ -757,7 +757,7 @@ generateConstructorEncoderFunction constructor =
 
         call : TS.Expression
         call =
-            TS.Call
+            TS.CallExpression
                 { function = codecsModule "encodeCustomTypeVariant"
                 , arguments =
                     [ argNames
@@ -805,7 +805,7 @@ generateUnionEncoderFunction typeName privacy typeVariables constructors =
 
         call : TS.Expression
         call =
-            TS.Call
+            TS.CallExpression
                 { function =
                     TS.MemberExpression
                         { object = TS.Identifier "codecs"
