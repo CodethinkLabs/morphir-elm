@@ -108,6 +108,8 @@ parameter modifiers name typeAnnotation =
 type Statement
     = FunctionDeclaration
         { name : String
+        , typeVariables : List TypeExp
+        , returnType : Maybe TypeExp
         , scope : FunctionScope
         , parameters : List Parameter
         , body : List Statement
