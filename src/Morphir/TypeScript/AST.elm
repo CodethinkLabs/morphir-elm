@@ -14,30 +14,7 @@ import Morphir.IR.FQName exposing (FQName)
 import Morphir.TypeScript.NamespacePath exposing (NamespacePath, namespaceNameFromPackageAndModule)
 
 
-type alias CompilationUnit =
-    { dirPath : List String
-    , fileName : String
-    , imports : List ImportDeclaration
-    , typeDefs : List TypeDef
-    }
-
-
-type alias ImportDeclaration =
-    { importClause : String
-    , moduleSpecifier : String
-    }
-
-
-type Privacy
-    = Public
-    | Private
-
-
-type alias CallExpressionDetails =
-    { function : Expression
-    , arguments : List Expression
-    }
-
+{-- Expressions --}
 
 type Expression
     = ArrayLiteralExpression (List Expression)
@@ -55,17 +32,32 @@ type Expression
     | ObjectLiteralExpression { properties : List ( String, Expression ) }
     | StringLiteralExpression String
 
+type alias CallExpressionDetails =
+    { function : Expression
+    , arguments : List Expression
+    }
 
-emptyObject : Expression
-emptyObject =
-    ObjectLiteralExpression { properties = [] }
 
+{-- Statements --}
+
+type Statement
+    = AssignmentStatement Expression (Maybe TypeExp) Expression
+    | ExpressionStatement Expression
+    | FunctionDeclaration FunctionDetails
+    | LetStatement Expression (Maybe TypeExp) Expression
+    | ReturnStatement Expression
+
+
+{-- Functions --}
+
+type Privacy
+    = Public
+    | Private
 
 type FunctionScope
     = ModuleFunction
     | ClassMemberFunction
     | ClassStaticFunction
-
 
 type alias Parameter =
     { modifiers : List String
@@ -73,6 +65,13 @@ type alias Parameter =
     , typeAnnotation : Maybe TypeExp
     }
 
+type alias FunctionDetails =
+    { name : String
+    , scope : FunctionScope
+    , parameters : List Parameter
+    , body : List Statement
+    , privacy : Privacy
+    }
 
 parameter : List String -> String -> Maybe TypeExp -> Parameter
 parameter modifiers name typeAnnotation =
@@ -82,24 +81,48 @@ parameter modifiers name typeAnnotation =
     }
 
 
-type Statement
-    = FunctionDeclaration
-        { name : String
-        , scope : FunctionScope
-        , parameters : List Parameter
-        , body : List Statement
-        , privacy : Privacy
-        }
-    | LetStatement Expression (Maybe TypeExp) Expression
-    | AssignmentStatement Expression (Maybe TypeExp) Expression
-    | ExpressionStatement Expression
-    | ReturnStatement Expression
+{-- Types --}
 
+{-| A type expression represents the right-hand side of a type annotation or a type alias.
 
-{-| Represents a type definition.
+The structure follows the documentation here:
+<https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean>
+
 -}
+type TypeExp
+    = Any
+    | Boolean
+    | List TypeExp {- Represents a Morphir 'List' type, as a Typescript 'Array' type -}
+    | LiteralString String
+    | Map TypeExp TypeExp
+    | Number
+    | Object ObjectExp
+    | String
+    | Tuple (List TypeExp)
+    | TypeRef FQName (List TypeExp)
+    | Union (List TypeExp)
+    | Variable String
+    | UnhandledType String
+
+{-| Represents an object expression (or interface definition) as a list of name-and-type pairs.
+-}
+type alias ObjectExp =
+    List ( String, TypeExp )
+
+emptyObject : Expression
+emptyObject =
+    ObjectLiteralExpression { properties = [] }
+
+
+{-- Top level entities --}
+
 type TypeDef
-    = Namespace
+    = ImportAlias
+        { name : String
+        , privacy : Privacy
+        , namespacePath : NamespacePath
+        }
+    | Namespace
         { name : String
         , privacy : Privacy
         , content : List TypeDef
@@ -123,38 +146,15 @@ type TypeDef
         , encoder : Maybe Statement
         , typeExpressions : List TypeExp -- for collecting import refs
         }
-    | ImportAlias
-        { name : String
-        , privacy : Privacy
-        , namespacePath : NamespacePath
-        }
 
+type alias ImportDeclaration =
+    { importClause : String
+    , moduleSpecifier : String
+    }
 
-{-| A type expression represents the right-hand side of a type annotation or a type alias.
-
-The structure follows the documentation here:
-<https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#the-primitives-string-number-and-boolean>
-
-Only a small subset of the type-system is currently implemented.
-
--}
-type TypeExp
-    = Any
-    | Boolean
-    | List TypeExp {- Represents a Morphir 'List' type, as a Typescript 'Array' type -}
-    | LiteralString String
-    | Map TypeExp TypeExp
-    | Number
-    | Object ObjectExp
-    | String
-    | Tuple (List TypeExp)
-    | TypeRef FQName (List TypeExp)
-    | Union (List TypeExp)
-    | Variable String
-    | UnhandledType String
-
-
-{-| Represents an object expression (or interface definition) as a list of name-and-type pairs.
--}
-type alias ObjectExp =
-    List ( String, TypeExp )
+type alias CompilationUnit =
+    { dirPath : List String
+    , fileName : String
+    , imports : List ImportDeclaration
+    , typeDefs : List TypeDef
+    }
