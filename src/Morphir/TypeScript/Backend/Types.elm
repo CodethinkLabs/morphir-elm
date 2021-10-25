@@ -125,10 +125,10 @@ deduplicateTypeVariables list =
     compareAndReturn Set.empty list []
 
 
-{-| Map a Morphir type definition into a list of TypeScript type definitions. The reason for returning a list is that
+{-| Map a Morphir type definition into a list of TypeScript declartions. The reason for returning a list is that
 some Morphir type definitions can only be represented by a combination of multiple type definitions in TypeScript.
 -}
-mapTypeDefinition : Name -> AccessControlled (Documented (Type.Definition ta)) -> List TS.TypeDef
+mapTypeDefinition : Name -> AccessControlled (Documented (Type.Definition ta)) -> List TS.Declaration
 mapTypeDefinition name typeDef =
     let
         doc =
@@ -139,15 +139,15 @@ mapTypeDefinition name typeDef =
     in
     case typeDef.value.value of
         Type.TypeAliasDefinition variables typeExp ->
-            [ TS.TypeAlias
+            [ TS.TypeAliasDeclaration
                 { name = name |> Name.toTitleCase
                 , privacy = privacy
                 , doc = doc
                 , variables = variables |> List.map Name.toTitleCase |> List.map (\var -> TS.Variable var)
                 , typeExpression = typeExp |> mapTypeExp
-                , decoder = Just (generateDecoderFunction variables name typeDef.access typeExp)
-                , encoder = Just (generateEncoderFunction variables name typeDef.access typeExp)
                 }
+            , generateDecoderFunction variables name typeDef.access typeExp
+            , generateEncoderFunction variables name typeDef.access typeExp
             ]
 
         Type.CustomTypeDefinition variables accessControlledConstructors ->
@@ -158,9 +158,9 @@ mapTypeDefinition name typeDef =
                         |> Dict.toList
                         |> List.map (getConstructorDetails privacy)
 
-                constructorInterfaces =
+                variants =
                     constructorDetails
-                        |> List.map mapConstructor
+                        |> List.concatMap mapConstructor
 
                 tsVariables : List TS.TypeExp
                 tsVariables =
@@ -187,19 +187,18 @@ mapTypeDefinition name typeDef =
                         []
 
                     else
-                        List.singleton
-                            (TS.TypeAlias
-                                { name = name |> Name.toTitleCase
-                                , privacy = privacy
-                                , doc = doc
-                                , variables = tsVariables
-                                , typeExpression = unionExpressionFromConstructorDetails constructorDetails
-                                , decoder = Just (generateUnionDecoderFunction name privacy variables constructorDetails)
-                                , encoder = Just (generateUnionEncoderFunction name privacy variables constructorDetails)
-                                }
-                            )
+                        [ TS.TypeAliasDeclaration
+                            { name = name |> Name.toTitleCase
+                            , privacy = privacy
+                            , doc = doc
+                            , variables = tsVariables
+                            , typeExpression = unionExpressionFromConstructorDetails constructorDetails
+                            }
+                        , generateUnionDecoderFunction name privacy variables constructorDetails
+                        , generateUnionEncoderFunction name privacy variables constructorDetails
+                        ]
             in
-            union ++ constructorInterfaces
+            union ++ variants
 
 
 mapPrivacy : Access -> TS.Privacy
@@ -214,7 +213,7 @@ mapPrivacy privacy =
 
 {-| Map a Morphir Constructor (A tuple of Name and Constructor Args) to a Typescript AST Interface
 -}
-mapConstructor : ConstructorDetail ta -> TS.TypeDef
+mapConstructor : ConstructorDetail ta -> List TS.Declaration
 mapConstructor constructor =
     let
         assignKind : TS.Statement
@@ -229,16 +228,17 @@ mapConstructor constructor =
             constructor.args
                 |> List.map (Tuple.second >> mapTypeExp)
     in
-    TS.VariantClass
-        { name = constructor.name |> Name.toTitleCase
-        , privacy = constructor.privacy
-        , variables = constructor.typeVariableNames |> List.map (Name.toTitleCase >> TS.Variable)
-        , body = [ assignKind ]
-        , constructor = Just (generateConstructorConstructorFunction constructor)
-        , decoder = Just (generateConstructorDecoderFunction constructor)
-        , encoder = Just (generateConstructorEncoderFunction constructor)
-        , typeExpressions = typeExpressions
-        }
+        [ TS.ClassDeclaration
+            { name = constructor.name |> Name.toTitleCase
+            , privacy = constructor.privacy
+            , variables = constructor.typeVariableNames |> List.map (Name.toTitleCase >> TS.Variable)
+            , body = [ assignKind ]
+            , constructor = Just (generateConstructorConstructorFunction constructor)
+            , typeExpressions = typeExpressions
+            }
+        , generateConstructorDecoderFunction constructor
+        , generateConstructorEncoderFunction constructor
+        ]
 
 
 {-| Map a Morphir type expression into a TypeScript type expression.
@@ -450,7 +450,7 @@ specificDecoderForType customTypeVars typeExp =
     bindArgumentsToFunction expression.function (removeInputArg expression.arguments)
 
 
-generateDecoderFunction : TypeVariablesList -> Name -> Access -> Type.Type ta -> TS.Statement
+generateDecoderFunction : TypeVariablesList -> Name -> Access -> Type.Type ta -> TS.Declaration
 generateDecoderFunction variables typeName access typeExp =
     let
         call : TS.CallExpressionDetails
@@ -478,7 +478,7 @@ generateDecoderFunction variables typeName access typeExp =
         }
 
 
-generateConstructorDecoderFunction : ConstructorDetail ta -> TS.Statement
+generateConstructorDecoderFunction : ConstructorDetail ta -> TS.Declaration
 generateConstructorDecoderFunction constructor =
     let
         decoderParams : List TS.Parameter
@@ -533,7 +533,7 @@ generateConstructorDecoderFunction constructor =
         }
 
 
-generateUnionDecoderFunction : Name -> TS.Privacy -> List Name -> List (ConstructorDetail ta) -> TS.Statement
+generateUnionDecoderFunction : Name -> TS.Privacy -> List Name -> List (ConstructorDetail ta) -> TS.Declaration
 generateUnionDecoderFunction typeName privacy typeVariables constructors =
     let
         decoderParams : List TS.Parameter
@@ -697,7 +697,7 @@ specificEncoderForType customTypeVars typeExp =
     bindArgumentsToFunction expression.function (removeValueArg expression.arguments)
 
 
-generateEncoderFunction : TypeVariablesList -> Name -> Access -> Type.Type ta -> TS.Statement
+generateEncoderFunction : TypeVariablesList -> Name -> Access -> Type.Type ta -> TS.Declaration
 generateEncoderFunction variables typeName access typeExp =
     let
         call =
@@ -724,7 +724,7 @@ generateEncoderFunction variables typeName access typeExp =
         }
 
 
-generateConstructorEncoderFunction : ConstructorDetail ta -> TS.Statement
+generateConstructorEncoderFunction : ConstructorDetail ta -> TS.Declaration
 generateConstructorEncoderFunction constructor =
     let
         encoderParams : List TS.Parameter
@@ -775,7 +775,7 @@ generateConstructorEncoderFunction constructor =
         }
 
 
-generateUnionEncoderFunction : Name -> TS.Privacy -> List Name -> List (ConstructorDetail ta) -> TS.Statement
+generateUnionEncoderFunction : Name -> TS.Privacy -> List Name -> List (ConstructorDetail ta) -> TS.Declaration
 generateUnionEncoderFunction typeName privacy typeVariables constructors =
     let
         encoderParams : List TS.Parameter
@@ -826,7 +826,7 @@ generateUnionEncoderFunction typeName privacy typeVariables constructors =
         }
 
 
-generateConstructorConstructorFunction : ConstructorDetail ta -> TS.Statement
+generateConstructorConstructorFunction : ConstructorDetail ta -> TS.Declaration
 generateConstructorConstructorFunction { name, privacy, args, typeVariables, typeVariableNames } =
     let
         argParams : List TS.Parameter

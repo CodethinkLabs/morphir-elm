@@ -24,17 +24,24 @@ makeTopLevelNamespaceModule packagePath packageDef =
                 _ ->
                     ".ts"
 
-        typeDefs : List TS.TypeDef
-        typeDefs =
+        externalImports : List TS.ImportDetails
+        externalImports =
+            packageDef.body
+            |> List.concatMap (getUniqueImportRefs [] [])
+            |> List.map (renderInternalImport [])
+
+        localAliases : List TS.ImportAliasDetails
+        localAliases =
             mapModuleNamespacesForTopLevelFile packagePath packageDef
     in
     { dirPath = []
     , fileName = topLevelPackageName
-    , imports =
-        typeDefs
-            |> List.concatMap (getUniqueImportRefs [] [])
-            |> List.map (renderInternalImport [])
-    , typeDefs = typeDefs
+    , body =
+        List.concatMap
+            TS.DeclarationStatement
+            [ externalImports |> TS.ImportDeclaration
+            , localAliases |> TS.ImportAliasDeclaration
+            ]
     }
 
 

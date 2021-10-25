@@ -49,7 +49,7 @@ makeRelativeImport dirPath modulePathFromTop =
     filePathPrefix ++ "/" ++ modulePathFromTop
 
 
-renderInternalImport : List String -> NamespacePath -> TS.ImportDeclaration
+renderInternalImport : List String -> NamespacePath -> TS.ImportDetails
 renderInternalImport dirPath ( packagePath, modulePath ) =
     let
         modulePathFromTop =
@@ -60,10 +60,10 @@ renderInternalImport dirPath ( packagePath, modulePath ) =
     }
 
 
-getUniqueImportRefs : Path -> Path -> TS.TypeDef -> List NamespacePath
+getUniqueImportRefs : Path -> Path -> TS.Statement -> List NamespacePath
 getUniqueImportRefs currentPackagePath currentModulePath typeDef =
     typeDef
-        |> collectRefsFromTypeDef
+        |> collectExternalTypeRefs
         |> List.filter
             (\( packagePath, modulePath ) ->
                 packagePath /= currentPackagePath || modulePath /= currentModulePath
@@ -90,24 +90,37 @@ filterUnique inputList =
     List.foldr incrementalFilterUnique [] inputList
 
 
-collectRefsFromTypeDef : TS.TypeDef -> List NamespacePath
-collectRefsFromTypeDef typeDef =
-    case typeDef of
-        TS.Namespace namespace ->
-            namespace.content |> List.concatMap collectRefsFromTypeDef
+collectExternalTypeRefs: TS.Statement -> List NamespacePath
+collectExternalTypeRefs statement =
+    case statement of
+        TS.DeclarationStatement declaration ->
+            collectRefsFromDeclaration declaration
 
-        TS.TypeAlias typeAlias ->
+        _ -> []
+
+
+collectRefsFromDeclaration : TS.Declaration -> List NamespacePath
+collectRefsFromDeclaration declaration =
+    case declaration of
+        TS.ClassDeclaration variantClass ->
+            (variantClass.variables ++ variantClass.typeExpressions)
+                |> List.concatMap collectRefsFromTypeExpression
+
+        TS.FunctionDeclaration _ -> []
+
+        TS.ImportDeclaration _ -> []
+
+        TS.ImportAliasDeclaration importAlias ->
+            [ importAlias.namespacePath ]
+
+        TS.NamespaceDeclaration namespace ->
+            namespace.body |> List.concatMap collectExternalTypeRefs
+
+        TS.TypeAliasDeclaration typeAlias ->
             List.concat
                 [ typeAlias.variables |> List.concatMap collectRefsFromTypeExpression
                 , typeAlias.typeExpression |> collectRefsFromTypeExpression
                 ]
-
-        TS.VariantClass variantClass ->
-            (variantClass.variables ++ variantClass.typeExpressions)
-                |> List.concatMap collectRefsFromTypeExpression
-
-        TS.ImportAlias importAlias ->
-            [ importAlias.namespacePath ]
 
 
 collectRefsFromTypeExpression : TS.TypeExp -> List NamespacePath

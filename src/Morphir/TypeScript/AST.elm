@@ -14,73 +14,6 @@ import Morphir.IR.FQName exposing (FQName)
 import Morphir.TypeScript.NamespacePath exposing (NamespacePath, namespaceNameFromPackageAndModule)
 
 
-{-- Expressions --}
-
-type Expression
-    = ArrayLiteralExpression (List Expression)
-    | CallExpression CallExpressionDetails
-    | Identifier String
-    | MemberExpression
-        { object : Expression
-        , member : Expression
-        }
-    | NewExpression
-        { constructor : String
-        , arguments : List Expression
-        }
-    | NullLiteral
-    | ObjectLiteralExpression { properties : List ( String, Expression ) }
-    | StringLiteralExpression String
-
-type alias CallExpressionDetails =
-    { function : Expression
-    , arguments : List Expression
-    }
-
-
-{-- Statements --}
-
-type Statement
-    = AssignmentStatement Expression (Maybe TypeExp) Expression
-    | ExpressionStatement Expression
-    | FunctionDeclaration FunctionDetails
-    | LetStatement Expression (Maybe TypeExp) Expression
-    | ReturnStatement Expression
-
-
-{-- Functions --}
-
-type Privacy
-    = Public
-    | Private
-
-type FunctionScope
-    = ModuleFunction
-    | ClassMemberFunction
-    | ClassStaticFunction
-
-type alias Parameter =
-    { modifiers : List String
-    , name : String
-    , typeAnnotation : Maybe TypeExp
-    }
-
-type alias FunctionDetails =
-    { name : String
-    , scope : FunctionScope
-    , parameters : List Parameter
-    , body : List Statement
-    , privacy : Privacy
-    }
-
-parameter : List String -> String -> Maybe TypeExp -> Parameter
-parameter modifiers name typeAnnotation =
-    { modifiers = modifiers
-    , name = name
-    , typeAnnotation = typeAnnotation
-    }
-
-
 {-- Types --}
 
 {-| A type expression represents the right-hand side of a type annotation or a type alias.
@@ -104,57 +37,146 @@ type TypeExp
     | Variable String
     | UnhandledType String
 
+
 {-| Represents an object expression (or interface definition) as a list of name-and-type pairs.
 -}
 type alias ObjectExp =
     List ( String, TypeExp )
+
 
 emptyObject : Expression
 emptyObject =
     ObjectLiteralExpression { properties = [] }
 
 
-{-- Top level entities --}
+{-- Expressions --}
 
-type TypeDef
-    = ImportAlias
-        { name : String
-        , privacy : Privacy
-        , namespacePath : NamespacePath
+type Expression
+    = ArrayLiteralExpression (List Expression)
+    | CallExpression CallExpressionDetails
+    | Identifier String
+    | MemberExpression
+        { object : Expression
+        , member : Expression
         }
-    | Namespace
-        { name : String
-        , privacy : Privacy
-        , content : List TypeDef
+    | NewExpression
+        { constructor : String
+        , arguments : List Expression
         }
-    | TypeAlias
-        { name : String
-        , doc : String
-        , privacy : Privacy
-        , variables : List TypeExp
-        , typeExpression : TypeExp
-        , decoder : Maybe Statement
-        , encoder : Maybe Statement
-        }
-    | VariantClass
-        { name : String
-        , privacy : Privacy
-        , variables : List TypeExp
-        , body : List Statement
-        , constructor : Maybe Statement
-        , decoder : Maybe Statement
-        , encoder : Maybe Statement
-        , typeExpressions : List TypeExp -- for collecting import refs
-        }
+    | NullLiteral
+    | ObjectLiteralExpression { properties : List ( String, Expression ) }
+    | StringLiteralExpression String
 
-type alias ImportDeclaration =
+
+type alias CallExpressionDetails =
+    { function : Expression
+    , arguments : List Expression
+    }
+
+
+{-- Statements --}
+
+
+type Statement
+    = AssignmentStatement Expression (Maybe TypeExp) Expression
+    | DeclarationStatement Declaration
+    | ExpressionStatement Expression
+    | LetStatement Expression (Maybe TypeExp) Expression
+    | ReturnStatement Expression
+
+
+{-- Utilities for declarations --}
+
+type Privacy
+    = Public
+    | Private
+
+
+type FunctionScope
+    = ModuleFunction
+    | ClassMemberFunction
+    | ClassStaticFunction
+
+
+type alias Parameter =
+    { modifiers : List String
+    , name : String
+    , typeAnnotation : Maybe TypeExp
+    }
+
+
+parameter : List String -> String -> Maybe TypeExp -> Parameter
+parameter modifiers name typeAnnotation =
+    { modifiers = modifiers
+    , name = name
+    , typeAnnotation = typeAnnotation
+    }
+
+
+{-- Declarations --}
+
+
+type Declaration
+    = ClassDeclaration ClassDetails
+    | FunctionDeclaration FunctionDetails
+    | ImportDeclaration ImportDetails
+    | ImportAliasDeclaration ImportAliasDetails
+    | NamespaceDeclaration NamespaceDetails
+    | TypeAliasDeclaration TypeAliasDetails
+
+
+type alias ClassDetails =
+    { name : String
+    , privacy : Privacy
+    , variables : List TypeExp
+    , body : List Statement
+    , constructor : Maybe Declaration
+    , typeExpressions: List TypeExp -- for collecting import refs
+    }
+
+
+type alias FunctionDetails =
+    { name : String
+    , scope : FunctionScope
+    , parameters : List Parameter
+    , body : List Statement
+    , privacy : Privacy
+    }
+
+
+type alias ImportDetails =
     { importClause : String
     , moduleSpecifier : String
     }
 
+
+type alias ImportAliasDetails =
+    { name : String
+    , privacy : Privacy
+    , namespacePath : NamespacePath
+    }
+
+
+type alias NamespaceDetails =
+    { name : String
+    , privacy : Privacy
+    , body : List Statement
+    }
+
+
+type alias TypeAliasDetails =
+    { name : String
+    , doc : String
+    , privacy : Privacy
+    , variables : List TypeExp
+    , typeExpression : TypeExp
+    }
+
+
+{-- Top level entity --}
+
 type alias CompilationUnit =
     { dirPath : List String
     , fileName : String
-    , imports : List ImportDeclaration
-    , typeDefs : List TypeDef
+    , body : List Statement
     }

@@ -3,7 +3,7 @@ module Morphir.TypeScript.PrettyPrinter.Expressions exposing (mapField, mapGener
 import Morphir.File.SourceCode exposing (Doc, concat, indentLines, newLine)
 import Morphir.IR.Name as Name
 import Morphir.IR.Path exposing (Path)
-import Morphir.TypeScript.AST exposing (ObjectExp, Privacy(..), TypeDef(..), TypeExp(..))
+import Morphir.TypeScript.AST exposing (Declaration(..), ObjectExp, Privacy(..), TypeExp(..))
 import Morphir.TypeScript.NamespacePath exposing (namespaceNameFromPackageAndModule)
 
 
