@@ -8,15 +8,12 @@ final text representation.
 The AST is maintained manually and it does not have to cover the whole language. We focus on the parts of the language
 that we use in the backend.
 
-@docs TypeDef, TypeExp, FieldDef
-
 -}
 
 import Morphir.IR.FQName exposing (FQName)
 import Morphir.TypeScript.NamespacePath exposing (NamespacePath, namespaceNameFromPackageAndModule)
 
 
-{-| -}
 type alias CompilationUnit =
     { dirPath : List String
     , fileName : String
