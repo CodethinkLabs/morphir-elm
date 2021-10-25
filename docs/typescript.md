@@ -56,9 +56,7 @@ gives a useful reference. There are some special cases, which are documented bel
 
 #### Dict
 
-A `Morphir.SDK.Dict.Dict K V` maps to a TypeScript `Array<K,V>`. We plan to
-change to using
-[Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map).
+A `Morphir.SDK.Dict.Dict K V` maps to a TypeScript `Map<K,V>`.
 
 #### Custom types
 
@@ -69,26 +67,27 @@ to implement custom types.
 Each type variant is a TypeScript `interface`, with a `kind` and maybe some
 fields: `arg1`, `arg2`, `arg3` and so on.
 
-You need to construct these manually. Here's an example using the Morphir IR
-`Literal` type:
+Constructor functions are provided for these.  Here's an example using the
+Morphir IR `Value` custom type, creating an instance of its `Reference`
+variant:
 
     import { Morphir } from './generated/Morphir'
 
-    let myBool: Morphir.IR.Literal.BoolLiteral = {
-        kind: "BoolLiteral",
-        arg1: true,
+    const exampleFQName: Morphir.IR.FQName.FQName = [[], [[]], ["excellent", "name"]];
+
+    type AttrType = [];
+    let myReference = new Morphir.IR.Value.Reference<AttrType>([], exampleFQName);
+
+Calling the constructor function is equivalent to manually constructing an object
+and setting the relevant properties:
+
+    let myReference: Morphir.IR.Value.Reference<AttrType> = {
+        kind: "Reference",
+        arg1: [],
+        arg2: exampleFQName,
     }
 
-    let myString: Morphir.IR.Literal.StringLiteral = {
-        kind: "StringLiteral",
-        arg1: "This is a wonderful string",
-    }
-
-    let myLiteral: Morphir.IR.Literal.Literal = myString;
-
-Note that this example would not actually compile as the `Morphir.IR.Literal`
-module is private by default. You could work around this by modifying
-`generated/Morphir.ts` to export it.
+Constructor functions are only provided for custom types.
 
 #### Type variables
 
@@ -100,9 +99,7 @@ alias that maps to a Record.
 
     import { Morphir } from './generated/Morphir'
 
-    const myAccess: Morphir.IR.AccessControlled.Access = {
-        "kind": "Public"
-    }
+    const myAccess = new Morphir.IR.AccessControlled.Public();
 
     let myAccessControlled: Morphir.IR.AccessControlled.AccessControlled<String> = {
         access: myAccess,
