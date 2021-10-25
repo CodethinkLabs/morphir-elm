@@ -32,19 +32,19 @@ For example, you can use the `IR` types from the `Morphir` package like this:
  
     const myName: Morphir.IR.Name.Name = ["this", "is", "a", "great", "name"]
 
-Internally the types are mapped to JavaScript types. You will find this in
-`generated/morphir/ir/Name.ts`:
+Internally the types map to TypeScript type definitions. This is how a Morphir
+IR `Name` would be represented in `generated/morphir/ir/Name.ts`:
 
     export type Name = Array<string>
 
 You benefit from all the usual TypeScript type checking. For example, a Path
-must be a list of Name instances, so this example will not compile:
+must be a list of Name instances, so this example will raise an error:
 
     import { Morphir } from './generated/Morphir'
  
     const myName: Morphir.IR.Path.Path = "This is the wrong type."
 
-You should see an error when compiling this:
+You should see this message when compiling:
 
     test.ts:3:7 - error TS2322: Type 'string' is not assignable to type 'Path'.
 
@@ -65,7 +65,9 @@ We follow the example
 to implement custom types.
 
 Each type variant is a TypeScript `interface`, with a `kind` and maybe some
-fields: `arg1`, `arg2`, `arg3` and so on.
+fields. The fields names are defined in the IR, and if you used `morphir-elm`
+make to build the IR then the names will follow the pattern `arg1`, `arg2`,
+`arg3` and so on.
 
 Constructor functions are provided for these.  Here's an example using the
 Morphir IR `Value` custom type, creating an instance of its `Reference`
