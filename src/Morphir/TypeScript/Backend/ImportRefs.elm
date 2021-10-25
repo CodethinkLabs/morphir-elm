@@ -130,5 +130,7 @@ collectRefsFromTypeExpression typeExp =
                 , subTypeExpList |> List.concatMap collectRefsFromTypeExpression
                 ]
 
-        _ ->
-            []
+        TS.Map keyType valueType ->
+            [keyType, valueType] |> List.concatMap collectRefsFromTypeExpression
+
+        _ -> []

@@ -166,6 +166,7 @@ type TypeExp
     | Boolean
     | List TypeExp {- Represents a Morphir 'List' type, as a Typescript 'Array' type -}
     | LiteralString String
+    | Map TypeExp TypeExp
     | Number
     | Object ObjectExp
     | String

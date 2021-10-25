@@ -66,6 +66,16 @@ mapTypeExp opt typeExp =
         LiteralString stringval ->
             "\"" ++ stringval ++ "\""
 
+        Map keyType valueType ->
+            concat
+                [ "Map"
+                , "<"
+                , mapTypeExp opt keyType
+                , ", "
+                , mapTypeExp opt valueType
+                , ">"
+                ]
+
         Number ->
             "number"
 
