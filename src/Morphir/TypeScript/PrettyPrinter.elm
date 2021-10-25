@@ -9,7 +9,8 @@ representation.
 
 import Morphir.File.SourceCode exposing (Doc, concat, indentLines, newLine)
 import Morphir.IR.Path exposing (Path)
-import Morphir.TypeScript.AST exposing (CompilationUnit, Expression(..), FunctionScope(..), ImportDeclaration, NamespacePath, Parameter, Privacy(..), Statement(..), TypeDef(..), TypeExp(..))
+import Morphir.TypeScript.AST exposing (CompilationUnit, Expression(..), FunctionScope(..), ImportDeclaration, Parameter, Privacy(..), Statement(..), TypeDef(..), TypeExp(..))
+import Morphir.TypeScript.NamespacePath exposing (namespaceNameFromPackageAndModule)
 import Morphir.TypeScript.PrettyPrinter.Expressions exposing (..)
 
 

@@ -12,6 +12,7 @@ import Morphir.IR.FQName as FQName exposing (FQName)
 import Morphir.IR.Name as Name exposing (Name)
 import Morphir.IR.Type as Type exposing (Type)
 import Morphir.TypeScript.AST as TS
+import Morphir.TypeScript.NamespacePath exposing (namespaceNameFromPackageAndModule)
 import Set exposing (Set)
 
 
@@ -307,7 +308,7 @@ codecsModule function =
 referenceCodec : FQName -> String -> TS.Expression
 referenceCodec ( packageName, moduleName, _ ) codecName =
     TS.MemberExpression
-        { object = TS.Identifier (TS.namespaceNameFromPackageAndModule packageName moduleName)
+        { object = TS.Identifier (namespaceNameFromPackageAndModule packageName moduleName)
         , member = TS.Identifier codecName
         }
 

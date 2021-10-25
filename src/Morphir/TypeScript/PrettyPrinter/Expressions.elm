@@ -1,9 +1,10 @@
-module Morphir.TypeScript.PrettyPrinter.Expressions exposing (mapField, mapGenericVariables, mapObjectExp, mapTypeExp, namespaceNameFromPackageAndModule)
+module Morphir.TypeScript.PrettyPrinter.Expressions exposing (mapField, mapGenericVariables, mapObjectExp, mapTypeExp)
 
 import Morphir.File.SourceCode exposing (Doc, concat, indentLines, newLine)
 import Morphir.IR.Name as Name
 import Morphir.IR.Path exposing (Path)
-import Morphir.TypeScript.AST exposing (ObjectExp, Privacy(..), TypeDef(..), TypeExp(..), namespaceNameFromPackageAndModule)
+import Morphir.TypeScript.AST exposing (ObjectExp, Privacy(..), TypeDef(..), TypeExp(..))
+import Morphir.TypeScript.NamespacePath exposing (namespaceNameFromPackageAndModule)
 
 
 defaultIndent =
@@ -126,10 +127,3 @@ mapTypeExp typeExp =
                 , tpe
                 , " */"
                 ]
-
-
-namespaceNameFromPackageAndModule : Path -> Path -> String
-namespaceNameFromPackageAndModule packagePath modulePath =
-    (packagePath ++ modulePath)
-        |> List.map Name.toTitleCase
-        |> String.join "_"

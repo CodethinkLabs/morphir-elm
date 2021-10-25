@@ -19,6 +19,7 @@ import Morphir.TypeScript.AST as TS
 import Morphir.TypeScript.Backend.Imports exposing (getTypeScriptPackagePathAndModuleName, getUniqueImportRefs, makeRelativeImport, renderInternalImport)
 import Morphir.TypeScript.Backend.TopLevelNamespace exposing (makeTopLevelNamespaceModule)
 import Morphir.TypeScript.Backend.Types exposing (mapTypeDefinition)
+import Morphir.TypeScript.NamespacePath exposing (namespaceNameFromPackageAndModule)
 import Morphir.TypeScript.PrettyPrinter as PrettyPrinter
 
 
@@ -92,7 +93,7 @@ mapModuleDefinition opt distribution currentPackagePath currentModulePath access
         namespace : TS.TypeDef
         namespace =
             TS.Namespace
-                { name = TS.namespaceNameFromPackageAndModule currentPackagePath currentModulePath
+                { name = namespaceNameFromPackageAndModule currentPackagePath currentModulePath
                 , privacy = TS.Public
                 , content = typeDefs
                 }

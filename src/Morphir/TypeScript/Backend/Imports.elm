@@ -4,6 +4,7 @@ import Morphir.File.SourceCode exposing (concat)
 import Morphir.IR.Name as Name exposing (Name)
 import Morphir.IR.Path exposing (Path)
 import Morphir.TypeScript.AST as TS
+import Morphir.TypeScript.NamespacePath exposing (NamespacePath, namespaceNameFromPackageAndModule)
 
 
 {-| Extracts a directory path (as a sequence of folder name string) and a Module filename (as a
@@ -23,7 +24,7 @@ getTypeScriptPackagePathAndModuleName packagePath modulePath =
             )
 
 
-filePathFromTop : TS.NamespacePath -> String
+filePathFromTop : NamespacePath -> String
 filePathFromTop ( packagePath, modulePath ) =
     getTypeScriptPackagePathAndModuleName packagePath modulePath
         |> (\( typeScriptPackagePath, moduleName ) ->
@@ -48,18 +49,18 @@ makeRelativeImport dirPath modulePathFromTop =
     filePathPrefix ++ "/" ++ modulePathFromTop
 
 
-renderInternalImport : List String -> TS.NamespacePath -> TS.ImportDeclaration
+renderInternalImport : List String -> NamespacePath -> TS.ImportDeclaration
 renderInternalImport dirPath ( packagePath, modulePath ) =
     let
         modulePathFromTop =
             ( packagePath, modulePath ) |> filePathFromTop
     in
-    { importClause = "{ " ++ TS.namespaceNameFromPackageAndModule packagePath modulePath ++ " }"
+    { importClause = "{ " ++ namespaceNameFromPackageAndModule packagePath modulePath ++ " }"
     , moduleSpecifier = makeRelativeImport dirPath modulePathFromTop
     }
 
 
-getUniqueImportRefs : Path -> Path -> TS.TypeDef -> List TS.NamespacePath
+getUniqueImportRefs : Path -> Path -> TS.TypeDef -> List NamespacePath
 getUniqueImportRefs currentPackagePath currentModulePath typeDef =
     typeDef
         |> collectRefsFromTypeDef
@@ -89,7 +90,7 @@ filterUnique inputList =
     List.foldr incrementalFilterUnique [] inputList
 
 
-collectRefsFromTypeDef : TS.TypeDef -> List TS.NamespacePath
+collectRefsFromTypeDef : TS.TypeDef -> List NamespacePath
 collectRefsFromTypeDef typeDef =
     case typeDef of
         TS.Namespace namespace ->
@@ -109,7 +110,7 @@ collectRefsFromTypeDef typeDef =
             [ importAlias.namespacePath ]
 
 
-collectRefsFromTypeExpression : TS.TypeExp -> List TS.NamespacePath
+collectRefsFromTypeExpression : TS.TypeExp -> List NamespacePath
 collectRefsFromTypeExpression typeExp =
     case typeExp of
         TS.List subTypeExp ->
