@@ -11,6 +11,7 @@ import Morphir.File.SourceCode exposing (Doc, concat, indentLines, newLine)
 import Morphir.IR.Path exposing (Path)
 import Morphir.TypeScript.AST exposing (CompilationUnit, Expression(..), FunctionScope(..), ImportDeclaration, NamespacePath, Parameter, Privacy(..), Statement(..), TypeDef(..), TypeExp(..))
 import Morphir.TypeScript.PrettyPrinter.MapExpressions exposing (..)
+import Morphir.TypeScript.PrettyPrinter.Options exposing (Options)
 
 
 {-| -}

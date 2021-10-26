@@ -1,16 +1,10 @@
-module Morphir.TypeScript.PrettyPrinter.MapExpressions exposing (Options, mapField, mapGenericVariables, mapObjectExp, mapTypeExp, namespaceNameFromPackageAndModule)
+module Morphir.TypeScript.PrettyPrinter.MapExpressions exposing (mapField, mapGenericVariables, mapObjectExp, mapTypeExp, namespaceNameFromPackageAndModule)
 
 import Morphir.File.SourceCode exposing (Doc, concat, indentLines, newLine)
 import Morphir.IR.Name as Name
 import Morphir.IR.Path exposing (Path)
 import Morphir.TypeScript.AST exposing (ObjectExp, Privacy(..), TypeDef(..), TypeExp(..), namespaceNameFromPackageAndModule)
-
-
-{-| Formatting options.
--}
-type alias Options =
-    { indentDepth : Int
-    }
+import Morphir.TypeScript.PrettyPrinter.Options exposing (Options)
 
 
 mapGenericVariables : Options -> List TypeExp -> String

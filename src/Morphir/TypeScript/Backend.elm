@@ -20,12 +20,7 @@ import Morphir.TypeScript.Backend.ImportRefs exposing (getTypeScriptPackagePathA
 import Morphir.TypeScript.Backend.MapTopLevelNamespace exposing (mapTopLevelNamespaceModule)
 import Morphir.TypeScript.Backend.MapTypes exposing (mapTypeDefinition)
 import Morphir.TypeScript.PrettyPrinter as PrettyPrinter
-import Morphir.TypeScript.PrettyPrinter.MapExpressions as MapExpressions
-
-
-standardPrettyPrinterOptions : MapExpressions.Options
-standardPrettyPrinterOptions =
-    { indentDepth = 2 }
+import Morphir.TypeScript.PrettyPrinter.Options as PrettyPrinterOptions
 
 
 {-| Placeholder for code generator options. Currently empty.
@@ -73,7 +68,7 @@ mapPackageDefinition opt distribution packagePath packageDef =
             let
                 fileContent =
                     compilationUnit
-                        |> PrettyPrinter.mapCompilationUnit standardPrettyPrinterOptions
+                        |> PrettyPrinter.mapCompilationUnit PrettyPrinterOptions.default
             in
             ( ( compilationUnit.dirPath, compilationUnit.fileName ), fileContent )
     in
