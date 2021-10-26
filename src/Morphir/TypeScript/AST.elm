@@ -58,7 +58,7 @@ namespaceNameFromPackageAndModule packagePath modulePath =
 
 type alias CallExpression =
     { function : Expression
-    , params : List Expression
+    , arguments : List Expression
     }
 
 

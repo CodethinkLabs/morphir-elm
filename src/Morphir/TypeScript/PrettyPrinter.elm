@@ -149,11 +149,11 @@ mapExpression expression =
                 , "]"
                 ]
 
-        Call { function, params } ->
+        Call { function, arguments } ->
             concat
                 [ mapExpression function
                 , "("
-                , String.join ", " (params |> List.map mapExpression)
+                , String.join ", " (arguments |> List.map mapExpression)
                 , ")"
                 ]
 
