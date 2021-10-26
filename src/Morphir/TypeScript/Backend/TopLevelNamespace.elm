@@ -1,4 +1,4 @@
-module Morphir.TypeScript.Backend.TopLevelNamespace exposing (mapTopLevelNamespaceModule)
+module Morphir.TypeScript.Backend.TopLevelNamespace exposing (makeTopLevelNamespaceModule)
 
 import Dict
 import Morphir.IR.Name as Name exposing (Name)
@@ -9,8 +9,8 @@ import Morphir.TypeScript.Backend.Imports exposing (getUniqueImportRefs, renderI
 import Morphir.TypeScript.Backend.Types exposing (mapPrivacy)
 
 
-mapTopLevelNamespaceModule : Package.PackageName -> Package.Definition ta (Type ()) -> TS.CompilationUnit
-mapTopLevelNamespaceModule packagePath packageDef =
+makeTopLevelNamespaceModule : Package.PackageName -> Package.Definition ta (Type ()) -> TS.CompilationUnit
+makeTopLevelNamespaceModule packagePath packageDef =
     let
         topLevelPackageName : String
         topLevelPackageName =

@@ -17,7 +17,7 @@ import Morphir.IR.Path as Path exposing (Path)
 import Morphir.IR.Type exposing (Type)
 import Morphir.TypeScript.AST as TS
 import Morphir.TypeScript.Backend.Imports exposing (getTypeScriptPackagePathAndModuleName, getUniqueImportRefs, makeRelativeImport, renderInternalImport)
-import Morphir.TypeScript.Backend.TopLevelNamespace exposing (mapTopLevelNamespaceModule)
+import Morphir.TypeScript.Backend.TopLevelNamespace exposing (makeTopLevelNamespaceModule)
 import Morphir.TypeScript.Backend.Types exposing (mapTypeDefinition)
 import Morphir.TypeScript.PrettyPrinter as PrettyPrinter
 import Morphir.TypeScript.PrettyPrinter.Options as PrettyPrinterOptions
@@ -52,7 +52,7 @@ mapPackageDefinition opt distribution packagePath packageDef =
     let
         topLevelNamespaceModule : TS.CompilationUnit
         topLevelNamespaceModule =
-            mapTopLevelNamespaceModule packagePath packageDef
+            makeTopLevelNamespaceModule packagePath packageDef
 
         individualModules : List TS.CompilationUnit
         individualModules =
