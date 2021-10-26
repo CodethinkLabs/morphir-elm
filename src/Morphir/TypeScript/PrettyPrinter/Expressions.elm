@@ -1,4 +1,4 @@
-module Morphir.TypeScript.PrettyPrinter.MapExpressions exposing (mapField, mapGenericVariables, mapObjectExp, mapTypeExp, namespaceNameFromPackageAndModule)
+module Morphir.TypeScript.PrettyPrinter.Expressions exposing (mapField, mapGenericVariables, mapObjectExp, mapTypeExp, namespaceNameFromPackageAndModule)
 
 import Morphir.File.SourceCode exposing (Doc, concat, indentLines, newLine)
 import Morphir.IR.Name as Name

@@ -1,4 +1,4 @@
-module Morphir.TypeScript.Backend.MapTypes exposing (mapPrivacy, mapTypeDefinition)
+module Morphir.TypeScript.Backend.Types exposing (mapPrivacy, mapTypeDefinition)
 
 {-| This module contains the TypeScript backend that translates the Morphir IR Types
 into TypeScript.

@@ -1,12 +1,12 @@
-module Morphir.TypeScript.Backend.MapTopLevelNamespace exposing (mapTopLevelNamespaceModule)
+module Morphir.TypeScript.Backend.TopLevelNamespace exposing (mapTopLevelNamespaceModule)
 
 import Dict
 import Morphir.IR.Name as Name exposing (Name)
 import Morphir.IR.Package as Package
 import Morphir.IR.Type exposing (Type)
 import Morphir.TypeScript.AST as TS
-import Morphir.TypeScript.Backend.ImportRefs exposing (getUniqueImportRefs, renderInternalImport)
-import Morphir.TypeScript.Backend.MapTypes exposing (mapPrivacy)
+import Morphir.TypeScript.Backend.Imports exposing (getUniqueImportRefs, renderInternalImport)
+import Morphir.TypeScript.Backend.Types exposing (mapPrivacy)
 
 
 mapTopLevelNamespaceModule : Package.PackageName -> Package.Definition ta (Type ()) -> TS.CompilationUnit

@@ -16,9 +16,9 @@ import Morphir.IR.Package as Package
 import Morphir.IR.Path as Path exposing (Path)
 import Morphir.IR.Type exposing (Type)
 import Morphir.TypeScript.AST as TS
-import Morphir.TypeScript.Backend.ImportRefs exposing (getTypeScriptPackagePathAndModuleName, getUniqueImportRefs, makeRelativeImport, renderInternalImport)
-import Morphir.TypeScript.Backend.MapTopLevelNamespace exposing (mapTopLevelNamespaceModule)
-import Morphir.TypeScript.Backend.MapTypes exposing (mapTypeDefinition)
+import Morphir.TypeScript.Backend.Imports exposing (getTypeScriptPackagePathAndModuleName, getUniqueImportRefs, makeRelativeImport, renderInternalImport)
+import Morphir.TypeScript.Backend.TopLevelNamespace exposing (mapTopLevelNamespaceModule)
+import Morphir.TypeScript.Backend.Types exposing (mapTypeDefinition)
 import Morphir.TypeScript.PrettyPrinter as PrettyPrinter
 import Morphir.TypeScript.PrettyPrinter.Options as PrettyPrinterOptions
 

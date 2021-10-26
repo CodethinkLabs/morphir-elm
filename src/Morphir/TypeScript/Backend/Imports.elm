@@ -1,4 +1,4 @@
-module Morphir.TypeScript.Backend.ImportRefs exposing (getTypeScriptPackagePathAndModuleName, getUniqueImportRefs, makeRelativeImport, renderInternalImport)
+module Morphir.TypeScript.Backend.Imports exposing (getTypeScriptPackagePathAndModuleName, getUniqueImportRefs, makeRelativeImport, renderInternalImport)
 
 import Morphir.File.SourceCode exposing (concat)
 import Morphir.IR.Name as Name exposing (Name)
