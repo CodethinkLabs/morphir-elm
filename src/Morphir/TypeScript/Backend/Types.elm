@@ -309,6 +309,13 @@ genericDecoder typeExp =
         typeExp
 
 
+genericEncoder : TS.TypeExp -> TS.TypeExp
+genericEncoder typeExp =
+    TS.FunctionTypeExp
+        [ TS.Parameter [] "value" (Just typeExp) ]
+        TS.Any
+
+
 {-| Reference a symbol in the Morphir.Internal.Codecs module.
 -}
 codecsModule : String -> TS.Expression
@@ -757,6 +764,10 @@ specificEncoderForType customTypeVars typeExp =
 generateEncoderFunction : TypeVariablesList -> Name -> Access -> Type.Type ta -> TS.Statement
 generateEncoderFunction variables typeName access typeExp =
     let
+        variableTypeExpressions : List TS.TypeExp
+        variableTypeExpressions =
+            variables |> List.map Name.toTitleCase |> List.map (\var -> TS.Variable var)
+
         call =
             encoderExpression variables typeExp
 
@@ -765,17 +776,20 @@ generateEncoderFunction variables typeName access typeExp =
             variables
                 |> List.map
                     (\var ->
-                        TS.parameter [] (prependEncodeToName var) Nothing
+                        TS.parameter
+                            []
+                            (prependEncodeToName var)
+                            (Just (genericEncoder (TS.Variable (Name.toTitleCase var))))
                     )
 
         valueParam : TS.Parameter
         valueParam =
-            TS.parameter [] "value" Nothing
+            TS.parameter [] "value" (Just (TS.TypeRef ( [], [], typeName ) variableTypeExpressions))
     in
     TS.FunctionDeclaration
         { name = prependEncodeToName typeName
-        , typeVariables = []
-        , returnType = Nothing
+        , typeVariables = variableTypeExpressions
+        , returnType = Just TS.Any
         , scope = TS.ModuleFunction
         , parameters = variableParams ++ [ valueParam ]
         , privacy = access |> mapPrivacy
@@ -786,17 +800,24 @@ generateEncoderFunction variables typeName access typeExp =
 generateConstructorEncoderFunction : ConstructorDetail ta -> TS.Statement
 generateConstructorEncoderFunction constructor =
     let
+        variableTypeExpressions : List TS.TypeExp
+        variableTypeExpressions =
+            constructor.typeVariableNames |> List.map Name.toTitleCase |> List.map (\var -> TS.Variable var)
+
         encoderParams : List TS.Parameter
         encoderParams =
             constructor.typeVariableNames
                 |> List.map
                     (\var ->
-                        TS.parameter [] (prependEncodeToName var) Nothing
+                        TS.parameter
+                            []
+                            (prependEncodeToName var)
+                            (Just (genericEncoder (TS.Variable (Name.toTitleCase var))))
                     )
 
         valueParam : TS.Parameter
         valueParam =
-            TS.parameter [] "value" Nothing
+            TS.parameter [] "value" (Just (TS.TypeRef ( [], [], constructor.name ) variableTypeExpressions))
 
         argNames =
             TS.ArrayLiteralExpression
@@ -827,8 +848,8 @@ generateConstructorEncoderFunction constructor =
     in
     TS.FunctionDeclaration
         { name = prependEncodeToName constructor.name
-        , typeVariables = []
-        , returnType = Nothing
+        , typeVariables = variableTypeExpressions
+        , returnType = Just TS.Any
         , scope = TS.ModuleFunction
         , privacy = constructor.privacy
         , parameters = encoderParams ++ [ valueParam ]
@@ -839,17 +860,24 @@ generateConstructorEncoderFunction constructor =
 generateUnionEncoderFunction : Name -> TS.Privacy -> List Name -> List (ConstructorDetail ta) -> TS.Statement
 generateUnionEncoderFunction typeName privacy typeVariables constructors =
     let
+        variableTypeExpressions : List TS.TypeExp
+        variableTypeExpressions =
+            typeVariables |> List.map Name.toTitleCase |> List.map (\var -> TS.Variable var)
+
         encoderParams : List TS.Parameter
         encoderParams =
             typeVariables
                 |> List.map
                     (\var ->
-                        TS.parameter [] (prependEncodeToName var) Nothing
+                        TS.parameter
+                            []
+                            (prependEncodeToName var)
+                            (Just (genericEncoder (TS.Variable (Name.toTitleCase var))))
                     )
 
         valueParam : TS.Parameter
         valueParam =
-            TS.parameter [] "value" Nothing
+            TS.parameter [] "value" (Just (TS.TypeRef ( [], [], typeName ) variableTypeExpressions))
 
         getCodecMapEntry : ConstructorDetail ta -> TS.Expression
         getCodecMapEntry constructor =
@@ -880,8 +908,8 @@ generateUnionEncoderFunction typeName privacy typeVariables constructors =
     in
     TS.FunctionDeclaration
         { name = prependEncodeToName typeName
-        , typeVariables = []
-        , returnType = Nothing
+        , typeVariables = variableTypeExpressions
+        , returnType = Just TS.Any
         , scope = TS.ModuleFunction
         , privacy = privacy
         , parameters = encoderParams ++ [ valueParam ]
