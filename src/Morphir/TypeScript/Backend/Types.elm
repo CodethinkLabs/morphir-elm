@@ -294,7 +294,8 @@ mapTypeExp tpe =
             TS.UnhandledType "Function"
 
 
-{-- Reference a symbol in the Morphir.Internal.Codecs module. --}
+
+{-| Reference a symbol in the Morphir.Internal.Codecs module. -}
 codecsModule : String -> TS.Expression
 codecsModule function =
     TS.MemberExpression
@@ -424,6 +425,7 @@ bindArgumentsToFunction : TS.Expression -> List TS.Expression -> TS.Expression
 bindArgumentsToFunction function args =
     if List.isEmpty args then
         function
+
     else
         TS.Call
             { function =
@@ -556,7 +558,7 @@ generateUnionDecoderFunction typeName privacy typeVariables constructors =
 
         codecMap : TS.Expression
         codecMap =
-            constructors |> List.map getCodecMapEntry |>  TS.ArrayLiteralExpression |> buildCodecMap
+            constructors |> List.map getCodecMapEntry |> TS.ArrayLiteralExpression |> buildCodecMap
 
         call : TS.Expression
         call =
@@ -571,7 +573,6 @@ generateUnionDecoderFunction typeName privacy typeVariables constructors =
                     , TS.Identifier "input"
                     ]
                 }
-
     in
     TS.FunctionDeclaration
         { name = prependDecodeToName typeName
@@ -799,7 +800,7 @@ generateUnionEncoderFunction typeName privacy typeVariables constructors =
 
         codecMap : TS.Expression
         codecMap =
-            constructors |> List.map getCodecMapEntry |>  TS.ArrayLiteralExpression |> buildCodecMap
+            constructors |> List.map getCodecMapEntry |> TS.ArrayLiteralExpression |> buildCodecMap
 
         call : TS.Expression
         call =
