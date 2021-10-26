@@ -1,6 +1,7 @@
 module Morphir.TypeScript.Backend.TopLevelNamespace exposing (makeTopLevelNamespaceModule)
 
 import Dict
+import Morphir.IR.Module as Module
 import Morphir.IR.Name as Name exposing (Name)
 import Morphir.IR.Package as Package
 import Morphir.IR.Type exposing (Type)
@@ -9,6 +10,8 @@ import Morphir.TypeScript.Backend.Imports exposing (getUniqueImportRefs, renderI
 import Morphir.TypeScript.Backend.Types exposing (mapPrivacy)
 
 
+{-| Generate a TypeScript file for the package that includes each of its modules.
+-}
 makeTopLevelNamespaceModule : Package.PackageName -> Package.Definition ta (Type ()) -> TS.CompilationUnit
 makeTopLevelNamespaceModule packagePath packageDef =
     let
@@ -35,8 +38,36 @@ makeTopLevelNamespaceModule packagePath packageDef =
     }
 
 
+{-| Create an ImportAlias for each module inside the package.
+-}
 mapModuleNamespacesForTopLevelFile : Package.PackageName -> Package.Definition ta (Type ()) -> List TS.TypeDef
 mapModuleNamespacesForTopLevelFile packagePath packageDef =
+    let
+        makeImportAlias : ( TS.Privacy, Module.ModuleName ) -> List TS.TypeDef
+        makeImportAlias ( privacy, modulePath ) =
+            case packagePath ++ modulePath |> List.reverse of
+                [] ->
+                    []
+
+                lastName :: restOfPath ->
+                    let
+                        importAlias =
+                            TS.ImportAlias
+                                { name = lastName |> Name.toTitleCase
+                                , privacy = privacy
+                                , namespacePath = ( packagePath, modulePath )
+                                }
+
+                        step : Name -> TS.TypeDef -> TS.TypeDef
+                        step name state =
+                            TS.Namespace
+                                { name = name |> Name.toTitleCase
+                                , privacy = privacy
+                                , content = List.singleton state
+                                }
+                    in
+                    [ restOfPath |> List.foldl step importAlias ]
+    in
     packageDef.modules
         |> Dict.toList
         |> List.map
@@ -45,36 +76,12 @@ mapModuleNamespacesForTopLevelFile packagePath packageDef =
                 , modulePath
                 )
             )
-        |> List.concatMap
-            (\( privacy, modulePath ) ->
-                case packagePath ++ modulePath |> List.reverse of
-                    [] ->
-                        []
-
-                    lastName :: restOfPath ->
-                        let
-                            importAlias =
-                                TS.ImportAlias
-                                    { name = lastName |> Name.toTitleCase
-                                    , privacy = privacy
-                                    , namespacePath = ( packagePath, modulePath )
-                                    }
-
-                            step : Name -> TS.TypeDef -> TS.TypeDef
-                            step name state =
-                                TS.Namespace
-                                    { name = name |> Name.toTitleCase
-                                    , privacy = privacy
-                                    , content = List.singleton state
-                                    }
-                        in
-                        [ restOfPath |> List.foldl step importAlias ]
-            )
+        |> List.concatMap makeImportAlias
         |> mergeNamespaces
 
 
-{-| The mergeNamespaces function takes a list of TypeDefs, and returns an
-equivalent list where Namespaces that have the same name will be merged together.
+{-| Takes a list of TypeDefs, and returns an equivalent list where Namespaces
+that have the same name are merged together.
 -}
 mergeNamespaces : List TS.TypeDef -> List TS.TypeDef
 mergeNamespaces inputList =
