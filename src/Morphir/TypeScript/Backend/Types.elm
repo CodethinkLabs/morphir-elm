@@ -28,6 +28,14 @@ type alias ConstructorDetail a =
     }
 
 
+inputIndexArg : Int -> TS.Expression
+inputIndexArg index =
+    TS.IndexedExpression
+        { object = TS.Identifier "input"
+        , index = TS.IntLiteralExpression index
+        }
+
+
 prependDecodeToName : Name -> String
 prependDecodeToName name =
     ("decode" :: name) |> Name.toCamelCase
@@ -294,6 +302,13 @@ mapTypeExp tpe =
             TS.UnhandledType "Function"
 
 
+genericDecoder : TS.TypeExp -> TS.TypeExp
+genericDecoder typeExp =
+    TS.FunctionTypeExp
+        [ TS.Parameter [] "input" (Just TS.Any) ]
+        typeExp
+
+
 {-| Reference a symbol in the Morphir.Internal.Codecs module.
 -}
 codecsModule : String -> TS.Expression
@@ -320,12 +335,8 @@ buildCodecMap array =
         }
 
 
-decoderExpression : TypeVariablesList -> Type.Type a -> TS.CallExpression
-decoderExpression customTypeVars typeExp =
-    let
-        inputArg =
-            TS.Identifier "input"
-    in
+decoderExpression : TypeVariablesList -> Type.Type a -> TS.Expression -> TS.CallExpression
+decoderExpression customTypeVars typeExp inputArg =
     case typeExp of
         Type.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "basics" ] ], [ "bool" ] ) [] ->
             { function = codecsModule "decodeBoolean", arguments = [ inputArg ] }
@@ -441,7 +452,7 @@ specificDecoderForType : TypeVariablesList -> Type.Type ta -> TS.Expression
 specificDecoderForType customTypeVars typeExp =
     let
         expression =
-            decoderExpression customTypeVars typeExp
+            decoderExpression customTypeVars typeExp (TS.Identifier "input")
 
         removeInputArg arguments =
             arguments |> List.take (List.length arguments - 1)
@@ -454,7 +465,7 @@ generateDecoderFunction variables typeName access typeExp =
     let
         call : TS.CallExpression
         call =
-            decoderExpression variables typeExp
+            decoderExpression variables typeExp (TS.Identifier "input")
 
         variableParams : List TS.Parameter
         variableParams =
@@ -482,57 +493,72 @@ generateDecoderFunction variables typeName access typeExp =
 generateConstructorDecoderFunction : ConstructorDetail ta -> TS.Statement
 generateConstructorDecoderFunction constructor =
     let
+        variableTypeExpressions : List TS.TypeExp
+        variableTypeExpressions =
+            constructor.typeVariableNames |> List.map Name.toTitleCase |> List.map (\var -> TS.Variable var)
+
         decoderParams : List TS.Parameter
         decoderParams =
             constructor.typeVariableNames
                 |> List.map
                     (\var ->
-                        TS.parameter [] (prependDecodeToName var) Nothing
+                        TS.parameter
+                            []
+                            (prependDecodeToName var)
+                            (Just (genericDecoder (TS.Variable (Name.toTitleCase var))))
                     )
 
         inputParam : TS.Parameter
         inputParam =
-            TS.parameter [] "input" Nothing
+            TS.parameter [] "input" (Just TS.Any)
 
         kind =
             TS.StringLiteralExpression (constructor.name |> Name.toTitleCase)
 
-        argNames =
-            TS.ArrayLiteralExpression
-                (constructor.args
-                    |> List.map (Tuple.first >> Name.toCamelCase >> TS.StringLiteralExpression)
-                )
-
-        argDecoders =
-            TS.ArrayLiteralExpression
-                (constructor.args
-                    |> List.map Tuple.second
-                    |> List.map (specificDecoderForType constructor.typeVariableNames)
-                )
-
-        input =
-            TS.Identifier "input"
-
-        call : TS.Expression
-        call =
+        validateCall : TS.Expression
+        validateCall =
             TS.Call
-                { function = codecsModule "decodeCustomTypeVariant"
+                { function = codecsModule "validateCustomTypeVariantInput"
                 , arguments =
                     [ kind
-                    , argNames
-                    , argDecoders
-                    , input
+                    , constructor.args |> List.length |> TS.IntLiteralExpression
+                    , TS.Identifier "input"
                     ]
+                }
+
+        argDecoderCalls : List TS.Expression
+        argDecoderCalls =
+            constructor.args
+                |> List.map Tuple.second
+                |> List.indexedMap
+                    (\index ->
+                        \typExp ->
+                            TS.Call
+                                (decoderExpression
+                                    constructor.typeVariableNames
+                                    typExp
+                                    (inputIndexArg (index + 1))
+                                )
+                    )
+
+        newCall : TS.Expression
+        newCall =
+            TS.NewExpression
+                { constructor = constructor.name |> Name.toTitleCase
+                , arguments = argDecoderCalls
                 }
     in
     TS.FunctionDeclaration
         { name = prependDecodeToName constructor.name
-        , typeVariables = []
-        , returnType = Nothing
+        , typeVariables = variableTypeExpressions
+        , returnType = Just (TS.TypeRef ( [], [], constructor.name ) variableTypeExpressions)
         , scope = TS.ModuleFunction
         , privacy = constructor.privacy
         , parameters = decoderParams ++ [ inputParam ]
-        , body = [ TS.ReturnStatement call ]
+        , body =
+            [ TS.ExpressionStatement validateCall
+            , TS.ReturnStatement newCall
+            ]
         }
 
 

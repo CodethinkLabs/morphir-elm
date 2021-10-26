@@ -296,3 +296,27 @@ export function encodeTuple(
   }
   return result;
 }
+
+export function validateCustomTypeVariantInput(
+  kindString: String,
+  numArgs: number,
+  input: any
+): void {
+  if (typeof input == "string") input = [input];
+  if (!(input instanceof Array)) {
+    throw new DecodeError(`Expected Array, got ${typeof input}`);
+  }
+  if (!(input.length == numArgs + 1)) {
+    throw new DecodeError(
+      `Expected Array of length ${numArgs + 1}, got ${input.length}`
+    );
+  }
+  if (typeof input[0] != "string") {
+    throw new DecodeError(
+      `Expected first argument to be ${kindString}, got ${input[0]}`
+    );
+  }
+  if (input[0] != kindString) {
+    throw new DecodeError(`Expected kind ${kindString}, got ${input[0]}`);
+  }
+}
