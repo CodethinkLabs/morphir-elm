@@ -28,13 +28,13 @@ type alias ConstructorDetail a =
     }
 
 
-nameToDecodeString : Name -> String
-nameToDecodeString name =
+prependDecodeToName : Name -> String
+prependDecodeToName name =
     ("decode" :: name) |> Name.toCamelCase
 
 
-nameToEncodeString : Name -> String
-nameToEncodeString name =
+prependEncodeToName : Name -> String
+prependEncodeToName name =
     ("encode" :: name) |> Name.toCamelCase
 
 
@@ -392,14 +392,14 @@ decoderExpression customTypeVars typeExp =
 
         Type.Variable _ varName ->
             { function =
-                TS.Identifier (nameToDecodeString varName)
+                TS.Identifier (prependDecodeToName varName)
             , arguments = [ inputArg ]
             }
 
         Type.Reference _ fQName argTypes ->
             let
                 decoderName =
-                    "decode" ++ (FQName.getLocalName fQName |> Name.toTitleCase)
+                    prependDecodeToName (FQName.getLocalName fQName)
 
                 varDecoders =
                     argTypes |> List.map (specificDecoderForType customTypeVars)
@@ -459,7 +459,7 @@ generateDecoderFunction variables typeName access typeExp =
             variables
                 |> List.map
                     (\var ->
-                        TS.parameter [] (nameToDecodeString var) Nothing
+                        TS.parameter [] (prependDecodeToName var) Nothing
                     )
 
         inputParam : TS.Parameter
@@ -467,7 +467,7 @@ generateDecoderFunction variables typeName access typeExp =
             TS.parameter [] "input" Nothing
     in
     TS.FunctionDeclaration
-        { name = "decode" ++ (typeName |> Name.toTitleCase)
+        { name = prependDecodeToName typeName
         , scope = TS.ModuleFunction
         , parameters = variableParams ++ [ inputParam ]
         , privacy = access |> mapPrivacy
@@ -483,7 +483,7 @@ generateConstructorDecoderFunction constructor =
             constructor.typeVariableNames
                 |> List.map
                     (\var ->
-                        TS.parameter [] (nameToDecodeString var) Nothing
+                        TS.parameter [] (prependDecodeToName var) Nothing
                     )
 
         inputParam : TS.Parameter
@@ -522,7 +522,7 @@ generateConstructorDecoderFunction constructor =
                 }
     in
     TS.FunctionDeclaration
-        { name = "decode" ++ (constructor.name |> Name.toTitleCase)
+        { name = prependDecodeToName constructor.name
         , scope = TS.ModuleFunction
         , privacy = constructor.privacy
         , parameters = decoderParams ++ [ inputParam ]
@@ -538,7 +538,7 @@ generateUnionDecoderFunction typeName privacy typeVariables constructors =
             typeVariables
                 |> List.map
                     (\var ->
-                        TS.parameter [] (nameToDecodeString var) Nothing
+                        TS.parameter [] (prependDecodeToName var) Nothing
                     )
 
         inputParam : TS.Parameter
@@ -550,8 +550,8 @@ generateUnionDecoderFunction typeName privacy typeVariables constructors =
             TS.ArrayLiteralExpression
                 [ TS.StringLiteralExpression (constructor.name |> Name.toTitleCase)
                 , bindArgumentsToFunction
-                    (constructor.name |> nameToDecodeString |> TS.Identifier)
-                    (constructor.typeVariableNames |> List.map (nameToDecodeString >> TS.Identifier))
+                    (constructor.name |> prependDecodeToName |> TS.Identifier)
+                    (constructor.typeVariableNames |> List.map (prependDecodeToName >> TS.Identifier))
                 ]
 
         codecMap : TS.Expression
@@ -574,7 +574,7 @@ generateUnionDecoderFunction typeName privacy typeVariables constructors =
 
     in
     TS.FunctionDeclaration
-        { name = "decode" ++ (typeName |> Name.toTitleCase)
+        { name = prependDecodeToName typeName
         , scope = TS.ModuleFunction
         , privacy = privacy
         , parameters = decoderParams ++ [ inputParam ]
@@ -655,14 +655,14 @@ encoderExpression customTypeVars typeExp =
 
         Type.Variable _ varName ->
             { function =
-                TS.Identifier (nameToEncodeString varName)
+                TS.Identifier (prependEncodeToName varName)
             , arguments = [ valueArg ]
             }
 
         Type.Reference _ fQName argTypes ->
             let
                 decoderName =
-                    "encode" ++ (FQName.getLocalName fQName |> Name.toTitleCase)
+                    prependEncodeToName (FQName.getLocalName fQName)
 
                 varEncoders =
                     argTypes |> List.map (specificEncoderForType customTypeVars)
@@ -706,7 +706,7 @@ generateEncoderFunction variables typeName access typeExp =
             variables
                 |> List.map
                     (\var ->
-                        TS.parameter [] (nameToEncodeString var) Nothing
+                        TS.parameter [] (prependEncodeToName var) Nothing
                     )
 
         valueParam : TS.Parameter
@@ -714,7 +714,7 @@ generateEncoderFunction variables typeName access typeExp =
             TS.parameter [] "value" Nothing
     in
     TS.FunctionDeclaration
-        { name = "encode" ++ (typeName |> Name.toTitleCase)
+        { name = prependEncodeToName typeName
         , scope = TS.ModuleFunction
         , parameters = variableParams ++ [ valueParam ]
         , privacy = access |> mapPrivacy
@@ -730,7 +730,7 @@ generateConstructorEncoderFunction constructor =
             constructor.typeVariableNames
                 |> List.map
                     (\var ->
-                        TS.parameter [] (nameToEncodeString var) Nothing
+                        TS.parameter [] (prependEncodeToName var) Nothing
                     )
 
         valueParam : TS.Parameter
@@ -765,7 +765,7 @@ generateConstructorEncoderFunction constructor =
                 }
     in
     TS.FunctionDeclaration
-        { name = "encode" ++ (constructor.name |> Name.toTitleCase)
+        { name = prependEncodeToName constructor.name
         , scope = TS.ModuleFunction
         , privacy = constructor.privacy
         , parameters = encoderParams ++ [ valueParam ]
@@ -781,7 +781,7 @@ generateUnionEncoderFunction typeName privacy typeVariables constructors =
             typeVariables
                 |> List.map
                     (\var ->
-                        TS.parameter [] (nameToEncodeString var) Nothing
+                        TS.parameter [] (prependEncodeToName var) Nothing
                     )
 
         valueParam : TS.Parameter
@@ -793,8 +793,8 @@ generateUnionEncoderFunction typeName privacy typeVariables constructors =
             TS.ArrayLiteralExpression
                 [ TS.StringLiteralExpression (constructor.name |> Name.toTitleCase)
                 , bindArgumentsToFunction
-                    (constructor.name |> nameToEncodeString |> TS.Identifier)
-                    (constructor.typeVariableNames |> List.map (nameToEncodeString >> TS.Identifier))
+                    (constructor.name |> prependEncodeToName |> TS.Identifier)
+                    (constructor.typeVariableNames |> List.map (prependEncodeToName >> TS.Identifier))
                 ]
 
         codecMap : TS.Expression
@@ -814,10 +814,9 @@ generateUnionEncoderFunction typeName privacy typeVariables constructors =
                     , TS.Identifier "value"
                     ]
                 }
-
     in
     TS.FunctionDeclaration
-        { name = "encode" ++ (typeName |> Name.toTitleCase)
+        { name = prependEncodeToName typeName
         , scope = TS.ModuleFunction
         , privacy = privacy
         , parameters = encoderParams ++ [ valueParam ]
