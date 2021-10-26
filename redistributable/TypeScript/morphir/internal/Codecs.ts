@@ -36,11 +36,7 @@ type CodecMap = Map<string, CodecFunction>;
 //   * https://stackoverflow.com/a/53136686
 //
 export function buildCodecMap(entries: Array<[string, CodecFunction]>): CodecMap {
-  let map = new Map();
-  entries.forEach((pair) => {
-    map.set(pair[0], pair[1]);
-  });
-  return map;
+  return new Map(entries);
 }
 
 export function decodeUnit(input: any): [] {
