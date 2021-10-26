@@ -83,55 +83,6 @@ export function decodeFloat(input: any): number {
   return input;
 }
 
-export function decodeCustomType(decoderMap: CodecMap, input: any): object {
-  if (typeof input == "string") input = [input];
-  if (!(input instanceof Array)) {
-    throw new DecodeError(`Expected Array, got ${typeof input}`);
-  }
-  if (!(typeof input[0] == "string")) {
-    throw new DecodeError(`Expected String, got ${typeof input}`);
-  }
-  if (!decoderMap.has(input[0])) {
-    let variantNames = Array.from(decoderMap.keys());
-    let variantNameString = variantNames.join(", ");
-    throw new DecodeError(
-      `Expected one of "${variantNameString}", got ${input[0]}`
-    );
-  }
-  return decoderMap.get(input[0])(input);
-}
-
-export function decodeCustomTypeVariant(
-  kind: string,
-  argNames: Array<string>,
-  argDecoders: CodecList,
-  input: any
-): object {
-  if (typeof input == "string") input = [input];
-
-  if (input[0] != kind) {
-    throw new DecodeError(`Expected kind ${kind}, got ${input[0]}`);
-  }
-
-  const argCount = input.length - 1;
-  if (argCount != argDecoders.length) {
-    throw new DecodeError(
-      `Expected ${argDecoders.length} args for custom type "${kind}", got ${argCount}`
-    );
-  }
-
-  var result = {
-    kind: kind,
-  };
-
-  for (var i = 0; i < argDecoders.length; i++) {
-    var paramName = argNames[i];
-    result[paramName] = argDecoders[i](input[i + 1]);
-  }
-
-  return result;
-}
-
 export function decodeDict<K, V>(
   decodeKey: (any) => K,
   decodeValue: (any) => V,
@@ -238,34 +189,6 @@ export function encodeInt(value: number): number {
 
 export function encodeFloat(value: number): number {
   return value;
-}
-
-export function encodeCustomType(encoderMap: CodecMap, value: any): any {
-  if (encoderMap.has(value["kind"])) {
-    const encoderFn: any = encoderMap.get(value["kind"]);
-    return encoderFn(value);
-  } else {
-    throw new DecodeError(
-      `Didn't find encoder for type variant: ${value["kind"]}`
-    );
-  }
-}
-
-export function encodeCustomTypeVariant(
-  argNames: Array<string>,
-  argEncoders: CodecList,
-  value: object
-): Array<any> {
-  if (argNames.length == 0) {
-    return value["kind"];
-  } else {
-    var result = [value["kind"]];
-    for (var i = 0; i < argNames.length; i++) {
-      const name = argNames[i];
-      result.push(argEncoders[i](value[name]));
-    }
-    return result;
-  }
 }
 
 export function encodeDict<K, V>(
