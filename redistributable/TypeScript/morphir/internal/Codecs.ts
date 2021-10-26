@@ -164,7 +164,10 @@ export function decodeList<T>(decodeElement: (any) => T, input: any): Array<T> {
   return inputArray.map(decodeElement);
 }
 
-export function decodeRecord(fieldDecoders: CodecMap, input: any): object {
+export function decodeRecord<recordType>(
+  fieldDecoders: CodecMap,
+  input: any
+): recordType {
   if (!(input instanceof Object)) {
     throw new DecodeError(`Expected Object, got ${typeof input}`);
   }
@@ -192,14 +195,14 @@ export function decodeRecord(fieldDecoders: CodecMap, input: any): object {
     }
     result[name] = decoder(inputObject[name]);
   });
-
+  // @ts-ignore
   return result;
 }
 
-export function decodeTuple(
+export function decodeTuple<tupleType>(
   elementDecoders: CodecList,
   input: any
-): Array<any> {
+): tupleType {
   if (!(input instanceof Array)) {
     throw new DecodeError(`Expected Array, got ${typeof input}`);
   }
@@ -209,6 +212,7 @@ export function decodeTuple(
   for (var i = 0; i < inputArray.length; i++) {
     result.push(elementDecoders[i](inputArray[i]));
   }
+  // @ts-ignore
   return result;
 }
 
@@ -319,4 +323,25 @@ export function validateCustomTypeVariantInput(
   if (input[0] != kindString) {
     throw new DecodeError(`Expected kind ${kindString}, got ${input[0]}`);
   }
+}
+
+export function parseKindFromCustomTypeInput(input: any): string {
+  if (typeof input == "string") input = [input];
+  if (!(input instanceof Array)) {
+    throw new DecodeError(`Expected Array, got ${typeof input}`);
+  }
+  if (!(typeof input[0] == "string")) {
+    throw new DecodeError(`Expected String, got ${typeof input}`);
+  }
+  return input[0];
+}
+
+export function raiseDecodeErrorFromCustomType(
+  customTypeName: string,
+  kind: string
+): void {
+  throw new DecodeError(
+    `Error while attempting to decode an instance of ${customTypeName}.` +
+      ` "${kind}" is not a valid 'kind' field for ${customTypeName}.`
+  );
 }

@@ -463,6 +463,10 @@ specificDecoderForType customTypeVars typeExp =
 generateDecoderFunction : TypeVariablesList -> Name -> Access -> Type.Type ta -> TS.Statement
 generateDecoderFunction variables typeName access typeExp =
     let
+        variableTypeExpressions : List TS.TypeExp
+        variableTypeExpressions =
+            variables |> List.map Name.toTitleCase |> List.map (\var -> TS.Variable var)
+
         call : TS.CallExpression
         call =
             decoderExpression variables typeExp (TS.Identifier "input")
@@ -472,17 +476,20 @@ generateDecoderFunction variables typeName access typeExp =
             variables
                 |> List.map
                     (\var ->
-                        TS.parameter [] (prependDecodeToName var) Nothing
+                        TS.parameter
+                            []
+                            (prependDecodeToName var)
+                            (Just (genericDecoder (TS.Variable (Name.toTitleCase var))))
                     )
 
         inputParam : TS.Parameter
         inputParam =
-            TS.parameter [] "input" Nothing
+            TS.parameter [] "input" (Just TS.Any)
     in
     TS.FunctionDeclaration
         { name = prependDecodeToName typeName
-        , typeVariables = []
-        , returnType = Nothing
+        , typeVariables = variableTypeExpressions
+        , returnType = Just (TS.TypeRef ( [], [], typeName ) variableTypeExpressions)
         , scope = TS.ModuleFunction
         , parameters = variableParams ++ [ inputParam ]
         , privacy = access |> mapPrivacy
@@ -565,53 +572,72 @@ generateConstructorDecoderFunction constructor =
 generateUnionDecoderFunction : Name -> TS.Privacy -> List Name -> List (ConstructorDetail ta) -> TS.Statement
 generateUnionDecoderFunction typeName privacy typeVariables constructors =
     let
+        variableTypeExpressions : List TS.TypeExp
+        variableTypeExpressions =
+            typeVariables |> List.map Name.toTitleCase |> List.map (\var -> TS.Variable var)
+
         decoderParams : List TS.Parameter
         decoderParams =
             typeVariables
                 |> List.map
                     (\var ->
-                        TS.parameter [] (prependDecodeToName var) Nothing
+                        TS.parameter
+                            []
+                            (prependDecodeToName var)
+                            (Just (genericDecoder (TS.Variable (Name.toTitleCase var))))
                     )
 
         inputParam : TS.Parameter
         inputParam =
-            TS.parameter [] "input" Nothing
+            TS.parameter [] "input" (Just TS.Any)
 
-        getCodecMapEntry : ConstructorDetail ta -> TS.Expression
-        getCodecMapEntry constructor =
-            TS.ArrayLiteralExpression
-                [ TS.StringLiteralExpression (constructor.name |> Name.toTitleCase)
-                , bindArgumentsToFunction
-                    (constructor.name |> prependDecodeToName |> TS.Identifier)
-                    (constructor.typeVariableNames |> List.map (prependDecodeToName >> TS.Identifier))
-                ]
+        kindCall : TS.Statement
+        kindCall =
+            TS.LetStatement
+                (TS.Identifier "kind")
+                Nothing
+                (TS.Call
+                    { function = codecsModule "parseKindFromCustomTypeInput"
+                    , arguments = [ inputArg ]
+                    }
+                )
 
-        codecMap : TS.Expression
-        codecMap =
-            constructors |> List.map getCodecMapEntry |> TS.ArrayLiteralExpression |> buildCodecMap
-
-        call : TS.Expression
-        call =
-            TS.Call
-                { function =
-                    TS.MemberExpression
-                        { object = TS.Identifier "codecs"
-                        , member = TS.Identifier "decodeCustomType"
-                        }
+        errorCall : TS.Statement
+        errorCall =
+            (TS.Call >> TS.ExpressionStatement)
+                { function = codecsModule "raiseDecodeErrorFromCustomType"
                 , arguments =
-                    [ codecMap
-                    , TS.Identifier "input"
+                    [ TS.StringLiteralExpression (typeName |> Name.toTitleCase)
+                    , TS.Identifier "kind"
                     ]
                 }
+
+        constructorToCase : ConstructorDetail ta -> ( TS.Expression, List TS.Statement )
+        constructorToCase constructor =
+            ( constructor.name |> Name.toTitleCase |> TS.StringLiteralExpression
+            , [ TS.ReturnStatement
+                    (TS.Call
+                        { function = constructor.name |> prependDecodeToName |> TS.Identifier
+                        , arguments = (constructor.typeVariableNames |> List.map (prependDecodeToName >> TS.Identifier)) ++ [ inputArg ]
+                        }
+                    )
+              ]
+            )
+
+        switchStatement : TS.Statement
+        switchStatement =
+            TS.SwitchStatement
+                (TS.Identifier "kind")
+                (constructors |> List.map constructorToCase)
     in
     TS.FunctionDeclaration
         { name = prependDecodeToName typeName
-        , typeVariables = []
-        , returnType = Nothing
+        , typeVariables = variableTypeExpressions
+        , returnType = Just (TS.TypeRef ( [], [], typeName ) variableTypeExpressions)
         , scope = TS.ModuleFunction
         , privacy = privacy
         , parameters = decoderParams ++ [ inputParam ]
-        , body = [ TS.ReturnStatement call ]
+        , body = [ kindCall, switchStatement, errorCall ]
         }
 
 
