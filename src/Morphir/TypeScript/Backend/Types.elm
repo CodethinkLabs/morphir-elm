@@ -12,6 +12,7 @@ import Morphir.IR.FQName as FQName exposing (FQName)
 import Morphir.IR.Name as Name exposing (Name)
 import Morphir.IR.Type as Type exposing (Type)
 import Morphir.TypeScript.AST as TS
+import Morphir.TypeScript.NamespacePath exposing (namespaceNameFromPackageAndModule)
 import Set exposing (Set)
 
 
@@ -124,10 +125,10 @@ deduplicateTypeVariables list =
     compareAndReturn Set.empty list []
 
 
-{-| Map a Morphir type definition into a list of TypeScript type definitions. The reason for returning a list is that
+{-| Map a Morphir type definition into a list of TypeScript declartions. The reason for returning a list is that
 some Morphir type definitions can only be represented by a combination of multiple type definitions in TypeScript.
 -}
-mapTypeDefinition : Name -> AccessControlled (Documented (Type.Definition ta)) -> List TS.TypeDef
+mapTypeDefinition : Name -> AccessControlled (Documented (Type.Definition ta)) -> List TS.Declaration
 mapTypeDefinition name typeDef =
     let
         doc =
@@ -138,15 +139,15 @@ mapTypeDefinition name typeDef =
     in
     case typeDef.value.value of
         Type.TypeAliasDefinition variables typeExp ->
-            [ TS.TypeAlias
+            [ TS.TypeAliasDeclaration
                 { name = name |> Name.toTitleCase
                 , privacy = privacy
                 , doc = doc
                 , variables = variables |> List.map Name.toTitleCase |> List.map (\var -> TS.Variable var)
                 , typeExpression = typeExp |> mapTypeExp
-                , decoder = Just (generateDecoderFunction variables name typeDef.access typeExp)
-                , encoder = Just (generateEncoderFunction variables name typeDef.access typeExp)
                 }
+            , generateDecoderFunction variables name typeDef.access typeExp
+            , generateEncoderFunction variables name typeDef.access typeExp
             ]
 
         Type.CustomTypeDefinition variables accessControlledConstructors ->
@@ -157,9 +158,9 @@ mapTypeDefinition name typeDef =
                         |> Dict.toList
                         |> List.map (getConstructorDetails privacy)
 
-                constructorInterfaces =
+                variants =
                     constructorDetails
-                        |> List.map mapConstructor
+                        |> List.concatMap mapConstructor
 
                 tsVariables : List TS.TypeExp
                 tsVariables =
@@ -186,19 +187,18 @@ mapTypeDefinition name typeDef =
                         []
 
                     else
-                        List.singleton
-                            (TS.TypeAlias
-                                { name = name |> Name.toTitleCase
-                                , privacy = privacy
-                                , doc = doc
-                                , variables = tsVariables
-                                , typeExpression = unionExpressionFromConstructorDetails constructorDetails
-                                , decoder = Just (generateUnionDecoderFunction name privacy variables constructorDetails)
-                                , encoder = Just (generateUnionEncoderFunction name privacy variables constructorDetails)
-                                }
-                            )
+                        [ TS.TypeAliasDeclaration
+                            { name = name |> Name.toTitleCase
+                            , privacy = privacy
+                            , doc = doc
+                            , variables = tsVariables
+                            , typeExpression = unionExpressionFromConstructorDetails constructorDetails
+                            }
+                        , generateUnionDecoderFunction name privacy variables constructorDetails
+                        , generateUnionEncoderFunction name privacy variables constructorDetails
+                        ]
             in
-            union ++ constructorInterfaces
+            union ++ variants
 
 
 mapPrivacy : Access -> TS.Privacy
@@ -213,7 +213,7 @@ mapPrivacy privacy =
 
 {-| Map a Morphir Constructor (A tuple of Name and Constructor Args) to a Typescript AST Interface
 -}
-mapConstructor : ConstructorDetail ta -> TS.TypeDef
+mapConstructor : ConstructorDetail ta -> List TS.Declaration
 mapConstructor constructor =
     let
         assignKind : TS.Statement
@@ -228,16 +228,17 @@ mapConstructor constructor =
             constructor.args
                 |> List.map (Tuple.second >> mapTypeExp)
     in
-    TS.VariantClass
-        { name = constructor.name |> Name.toTitleCase
-        , privacy = constructor.privacy
-        , variables = constructor.typeVariableNames |> List.map (Name.toTitleCase >> TS.Variable)
-        , body = [ assignKind ]
-        , constructor = Just (generateConstructorConstructorFunction constructor)
-        , decoder = Just (generateConstructorDecoderFunction constructor)
-        , encoder = Just (generateConstructorEncoderFunction constructor)
-        , typeExpressions = typeExpressions
-        }
+        [ TS.ClassDeclaration
+            { name = constructor.name |> Name.toTitleCase
+            , privacy = constructor.privacy
+            , variables = constructor.typeVariableNames |> List.map (Name.toTitleCase >> TS.Variable)
+            , body = [ assignKind ]
+            , constructor = Just (generateConstructorConstructorFunction constructor)
+            , typeExpressions = typeExpressions
+            }
+        , generateConstructorDecoderFunction constructor
+        , generateConstructorEncoderFunction constructor
+        ]
 
 
 {-| Map a Morphir type expression into a TypeScript type expression.
@@ -307,21 +308,21 @@ codecsModule function =
 referenceCodec : FQName -> String -> TS.Expression
 referenceCodec ( packageName, moduleName, _ ) codecName =
     TS.MemberExpression
-        { object = TS.Identifier (TS.namespaceNameFromPackageAndModule packageName moduleName)
+        { object = TS.Identifier (namespaceNameFromPackageAndModule packageName moduleName)
         , member = TS.Identifier codecName
         }
 
 
 buildCodecMap : TS.Expression -> TS.Expression
 buildCodecMap array =
-    TS.Call
+    TS.CallExpression
         { function = codecsModule "buildCodecMap"
         , arguments = [ array ]
         }
 
 
-decoderExpression : TypeVariablesList -> Type.Type a -> TS.CallExpression
-decoderExpression customTypeVars typeExp =
+decoderCall : TypeVariablesList -> Type.Type a -> TS.CallExpressionDetails
+decoderCall customTypeVars typeExp =
     let
         inputArg =
             TS.Identifier "input"
@@ -427,7 +428,7 @@ bindArgumentsToFunction function args =
         function
 
     else
-        TS.Call
+        TS.CallExpression
             { function =
                 TS.MemberExpression
                     { object = function
@@ -441,7 +442,7 @@ specificDecoderForType : TypeVariablesList -> Type.Type ta -> TS.Expression
 specificDecoderForType customTypeVars typeExp =
     let
         expression =
-            decoderExpression customTypeVars typeExp
+            decoderCall customTypeVars typeExp
 
         removeInputArg arguments =
             arguments |> List.take (List.length arguments - 1)
@@ -449,12 +450,12 @@ specificDecoderForType customTypeVars typeExp =
     bindArgumentsToFunction expression.function (removeInputArg expression.arguments)
 
 
-generateDecoderFunction : TypeVariablesList -> Name -> Access -> Type.Type ta -> TS.Statement
+generateDecoderFunction : TypeVariablesList -> Name -> Access -> Type.Type ta -> TS.Declaration
 generateDecoderFunction variables typeName access typeExp =
     let
-        call : TS.CallExpression
+        call : TS.CallExpressionDetails
         call =
-            decoderExpression variables typeExp
+            decoderCall variables typeExp
 
         variableParams : List TS.Parameter
         variableParams =
@@ -473,11 +474,11 @@ generateDecoderFunction variables typeName access typeExp =
         , scope = TS.ModuleFunction
         , parameters = variableParams ++ [ inputParam ]
         , privacy = access |> mapPrivacy
-        , body = [ TS.ReturnStatement (TS.Call call) ]
+        , body = [ TS.ReturnStatement (TS.CallExpression call) ]
         }
 
 
-generateConstructorDecoderFunction : ConstructorDetail ta -> TS.Statement
+generateConstructorDecoderFunction : ConstructorDetail ta -> TS.Declaration
 generateConstructorDecoderFunction constructor =
     let
         decoderParams : List TS.Parameter
@@ -513,7 +514,7 @@ generateConstructorDecoderFunction constructor =
 
         call : TS.Expression
         call =
-            TS.Call
+            TS.CallExpression
                 { function = codecsModule "decodeCustomTypeVariant"
                 , arguments =
                     [ kind
@@ -532,7 +533,7 @@ generateConstructorDecoderFunction constructor =
         }
 
 
-generateUnionDecoderFunction : Name -> TS.Privacy -> List Name -> List (ConstructorDetail ta) -> TS.Statement
+generateUnionDecoderFunction : Name -> TS.Privacy -> List Name -> List (ConstructorDetail ta) -> TS.Declaration
 generateUnionDecoderFunction typeName privacy typeVariables constructors =
     let
         decoderParams : List TS.Parameter
@@ -562,7 +563,7 @@ generateUnionDecoderFunction typeName privacy typeVariables constructors =
 
         call : TS.Expression
         call =
-            TS.Call
+            TS.CallExpression
                 { function =
                     TS.MemberExpression
                         { object = TS.Identifier "codecs"
@@ -583,8 +584,8 @@ generateUnionDecoderFunction typeName privacy typeVariables constructors =
         }
 
 
-encoderExpression : TypeVariablesList -> Type.Type a -> TS.CallExpression
-encoderExpression customTypeVars typeExp =
+encoderCall : TypeVariablesList -> Type.Type a -> TS.CallExpressionDetails
+encoderCall customTypeVars typeExp =
     let
         valueArg =
             TS.Identifier "value"
@@ -688,7 +689,7 @@ specificEncoderForType : TypeVariablesList -> Type.Type ta -> TS.Expression
 specificEncoderForType customTypeVars typeExp =
     let
         expression =
-            encoderExpression customTypeVars typeExp
+            encoderCall customTypeVars typeExp
 
         removeValueArg arguments =
             arguments |> List.take (List.length arguments - 1)
@@ -696,11 +697,11 @@ specificEncoderForType customTypeVars typeExp =
     bindArgumentsToFunction expression.function (removeValueArg expression.arguments)
 
 
-generateEncoderFunction : TypeVariablesList -> Name -> Access -> Type.Type ta -> TS.Statement
+generateEncoderFunction : TypeVariablesList -> Name -> Access -> Type.Type ta -> TS.Declaration
 generateEncoderFunction variables typeName access typeExp =
     let
         call =
-            encoderExpression variables typeExp
+            encoderCall variables typeExp
 
         variableParams : List TS.Parameter
         variableParams =
@@ -719,11 +720,11 @@ generateEncoderFunction variables typeName access typeExp =
         , scope = TS.ModuleFunction
         , parameters = variableParams ++ [ valueParam ]
         , privacy = access |> mapPrivacy
-        , body = [ TS.ReturnStatement (call |> TS.Call) ]
+        , body = [ TS.ReturnStatement (call |> TS.CallExpression) ]
         }
 
 
-generateConstructorEncoderFunction : ConstructorDetail ta -> TS.Statement
+generateConstructorEncoderFunction : ConstructorDetail ta -> TS.Declaration
 generateConstructorEncoderFunction constructor =
     let
         encoderParams : List TS.Parameter
@@ -756,7 +757,7 @@ generateConstructorEncoderFunction constructor =
 
         call : TS.Expression
         call =
-            TS.Call
+            TS.CallExpression
                 { function = codecsModule "encodeCustomTypeVariant"
                 , arguments =
                     [ argNames
@@ -774,7 +775,7 @@ generateConstructorEncoderFunction constructor =
         }
 
 
-generateUnionEncoderFunction : Name -> TS.Privacy -> List Name -> List (ConstructorDetail ta) -> TS.Statement
+generateUnionEncoderFunction : Name -> TS.Privacy -> List Name -> List (ConstructorDetail ta) -> TS.Declaration
 generateUnionEncoderFunction typeName privacy typeVariables constructors =
     let
         encoderParams : List TS.Parameter
@@ -804,7 +805,7 @@ generateUnionEncoderFunction typeName privacy typeVariables constructors =
 
         call : TS.Expression
         call =
-            TS.Call
+            TS.CallExpression
                 { function =
                     TS.MemberExpression
                         { object = TS.Identifier "codecs"
@@ -825,7 +826,7 @@ generateUnionEncoderFunction typeName privacy typeVariables constructors =
         }
 
 
-generateConstructorConstructorFunction : ConstructorDetail ta -> TS.Statement
+generateConstructorConstructorFunction : ConstructorDetail ta -> TS.Declaration
 generateConstructorConstructorFunction { name, privacy, args, typeVariables, typeVariableNames } =
     let
         argParams : List TS.Parameter

@@ -4,6 +4,7 @@ import Morphir.File.SourceCode exposing (concat)
 import Morphir.IR.Name as Name exposing (Name)
 import Morphir.IR.Path exposing (Path)
 import Morphir.TypeScript.AST as TS
+import Morphir.TypeScript.NamespacePath exposing (NamespacePath, namespaceNameFromPackageAndModule)
 
 
 {-| Extracts a directory path (as a sequence of folder name string) and a Module filename (as a
@@ -23,7 +24,7 @@ getTypeScriptPackagePathAndModuleName packagePath modulePath =
             )
 
 
-filePathFromTop : TS.NamespacePath -> String
+filePathFromTop : NamespacePath -> String
 filePathFromTop ( packagePath, modulePath ) =
     getTypeScriptPackagePathAndModuleName packagePath modulePath
         |> (\( typeScriptPackagePath, moduleName ) ->
@@ -48,21 +49,21 @@ makeRelativeImport dirPath modulePathFromTop =
     filePathPrefix ++ "/" ++ modulePathFromTop
 
 
-renderInternalImport : List String -> TS.NamespacePath -> TS.ImportDeclaration
+renderInternalImport : List String -> NamespacePath -> TS.ImportDetails
 renderInternalImport dirPath ( packagePath, modulePath ) =
     let
         modulePathFromTop =
             ( packagePath, modulePath ) |> filePathFromTop
     in
-    { importClause = "{ " ++ TS.namespaceNameFromPackageAndModule packagePath modulePath ++ " }"
+    { importClause = "{ " ++ namespaceNameFromPackageAndModule packagePath modulePath ++ " }"
     , moduleSpecifier = makeRelativeImport dirPath modulePathFromTop
     }
 
 
-getUniqueImportRefs : Path -> Path -> TS.TypeDef -> List TS.NamespacePath
+getUniqueImportRefs : Path -> Path -> TS.Statement -> List NamespacePath
 getUniqueImportRefs currentPackagePath currentModulePath typeDef =
     typeDef
-        |> collectRefsFromTypeDef
+        |> collectExternalTypeRefs
         |> List.filter
             (\( packagePath, modulePath ) ->
                 packagePath /= currentPackagePath || modulePath /= currentModulePath
@@ -89,27 +90,40 @@ filterUnique inputList =
     List.foldr incrementalFilterUnique [] inputList
 
 
-collectRefsFromTypeDef : TS.TypeDef -> List TS.NamespacePath
-collectRefsFromTypeDef typeDef =
-    case typeDef of
-        TS.Namespace namespace ->
-            namespace.content |> List.concatMap collectRefsFromTypeDef
+collectExternalTypeRefs: TS.Statement -> List NamespacePath
+collectExternalTypeRefs statement =
+    case statement of
+        TS.DeclarationStatement declaration ->
+            collectRefsFromDeclaration declaration
 
-        TS.TypeAlias typeAlias ->
+        _ -> []
+
+
+collectRefsFromDeclaration : TS.Declaration -> List NamespacePath
+collectRefsFromDeclaration declaration =
+    case declaration of
+        TS.ClassDeclaration variantClass ->
+            (variantClass.variables ++ variantClass.typeExpressions)
+                |> List.concatMap collectRefsFromTypeExpression
+
+        TS.FunctionDeclaration _ -> []
+
+        TS.ImportDeclaration _ -> []
+
+        TS.ImportAliasDeclaration importAlias ->
+            [ importAlias.namespacePath ]
+
+        TS.NamespaceDeclaration namespace ->
+            namespace.body |> List.concatMap collectExternalTypeRefs
+
+        TS.TypeAliasDeclaration typeAlias ->
             List.concat
                 [ typeAlias.variables |> List.concatMap collectRefsFromTypeExpression
                 , typeAlias.typeExpression |> collectRefsFromTypeExpression
                 ]
 
-        TS.VariantClass variantClass ->
-            (variantClass.variables ++ variantClass.typeExpressions)
-                |> List.concatMap collectRefsFromTypeExpression
 
-        TS.ImportAlias importAlias ->
-            [ importAlias.namespacePath ]
-
-
-collectRefsFromTypeExpression : TS.TypeExp -> List TS.NamespacePath
+collectRefsFromTypeExpression : TS.TypeExp -> List NamespacePath
 collectRefsFromTypeExpression typeExp =
     case typeExp of
         TS.List subTypeExp ->
