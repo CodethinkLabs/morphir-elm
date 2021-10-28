@@ -248,7 +248,7 @@ export function encodeTuple(
   return result;
 }
 
-export function validateCustomTypeVariantInput(
+export function preprocessCustomTypeVariant(
   kindString: String,
   numArgs: number,
   input: any

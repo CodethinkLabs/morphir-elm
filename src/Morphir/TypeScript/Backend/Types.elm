@@ -532,7 +532,7 @@ generateConstructorDecoderFunction constructor =
         validateCall : TS.Expression
         validateCall =
             TS.Call
-                { function = codecsModule "validateCustomTypeVariantInput"
+                { function = codecsModule "preprocessCustomTypeVariant"
                 , arguments =
                     [ kind
                     , constructor.args |> List.length |> TS.IntLiteralExpression
