@@ -11,7 +11,7 @@ import Morphir.IR.Documented exposing (Documented)
 import Morphir.IR.FQName as FQName exposing (FQName)
 import Morphir.IR.Name as Name exposing (Name)
 import Morphir.IR.Type as Type exposing (Type)
-import Morphir.TypeScript.AST as TS
+import Morphir.TypeScript.AST as TS exposing (Statement(..))
 import Set exposing (Set)
 
 
@@ -381,23 +381,54 @@ decoderExpression customTypeVars typeExp inputArg =
             }
 
         Type.Record _ fieldList ->
-            { function = codecsModule "decodeRecord"
-            , arguments =
-                {--fieldDecoders --}
-                [ (fieldList
-                    |> List.map
-                        (\field ->
-                            TS.ArrayLiteralExpression
-                                [ TS.StringLiteralExpression (Name.toCamelCase field.name)
-                                , specificDecoderForType customTypeVars field.tpe
-                                ]
-                        )
-                  )
-                    |> TS.ArrayLiteralExpression
-                    |> buildCodecMap
-                , inputArg
-                ]
-            }
+            let
+                fieldNameAsStringLiteral : Type.Field a -> TS.Expression
+                fieldNameAsStringLiteral { name } =
+                    name |> Name.toCamelCase |> TS.StringLiteralExpression
+
+                validationFunctionCall : TS.Statement
+                validationFunctionCall =
+                    { function = codecsModule "validateRecordInput"
+                    , arguments =
+                        TS.Identifier "input"
+                            :: (fieldList |> List.map fieldNameAsStringLiteral)
+                    }
+                        |> TS.Call
+                        |> TS.ExpressionStatement
+
+                fieldDecoder : Type.Field a -> ( String, TS.Expression )
+                fieldDecoder { name, tpe } =
+                    let
+                        subInputArg : TS.Expression
+                        subInputArg =
+                            { object = inputArg
+                            , member = name |> Name.toCamelCase |> TS.Identifier
+                            }
+                                |> TS.MemberExpression
+                    in
+                    ( name |> Name.toCamelCase
+                    , TS.Call (decoderExpression customTypeVars tpe subInputArg)
+                    )
+
+                returnStatement : TS.Statement
+                returnStatement =
+                    { properties = fieldList |> List.map fieldDecoder }
+                        |> TS.ObjectLiteralExpression
+                        |> TS.ReturnStatement
+
+                anonymousDecoderFunc : TS.Expression
+                anonymousDecoderFunc =
+                    TS.FunctionExpression
+                        { name = Nothing
+                        , typeVariables = []
+                        , returnType = Just (mapTypeExp typeExp)
+                        , scope = TS.AnonymousFunction
+                        , parameters = [ { modifiers = [], name = "input", typeAnnotation = Just TS.Any } ]
+                        , body = [ validationFunctionCall, returnStatement ]
+                        , privacy = TS.Public
+                        }
+            in
+            { function = anonymousDecoderFunc, arguments = [ inputArg ] }
 
         Type.Tuple _ tupleTypesList ->
             { function = codecsModule "decodeTuple"
