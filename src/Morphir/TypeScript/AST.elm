@@ -62,9 +62,21 @@ type alias CallExpression =
     }
 
 
+type alias FunctionDefinition =
+    { name : Maybe String
+    , typeVariables : List TypeExp
+    , returnType : Maybe TypeExp
+    , scope : FunctionScope
+    , parameters : List Parameter
+    , body : List Statement
+    , privacy : Privacy
+    }
+
+
 type Expression
     = ArrayLiteralExpression (List Expression)
     | Call CallExpression
+    | FunctionExpression FunctionDefinition
     | Identifier String
     | IntLiteralExpression Int
     | IndexedExpression
@@ -93,6 +105,7 @@ type FunctionScope
     = ModuleFunction
     | ClassMemberFunction
     | ClassStaticFunction
+    | AnonymousFunction
 
 
 type alias Parameter =
@@ -111,15 +124,7 @@ parameter modifiers name typeAnnotation =
 
 
 type Statement
-    = FunctionDeclaration
-        { name : String
-        , typeVariables : List TypeExp
-        , returnType : Maybe TypeExp
-        , scope : FunctionScope
-        , parameters : List Parameter
-        , body : List Statement
-        , privacy : Privacy
-        }
+    = FunctionDeclaration FunctionDefinition
     | LetStatement Expression (Maybe TypeExp) Expression
     | AssignmentStatement Expression (Maybe TypeExp) Expression
     | ExpressionStatement Expression

@@ -494,7 +494,7 @@ generateDecoderFunction variables typeName access typeExp =
             TS.parameter [] "input" (Just TS.Any)
     in
     TS.FunctionDeclaration
-        { name = prependDecodeToName typeName
+        { name = Just (prependDecodeToName typeName)
         , typeVariables = variableTypeExpressions
         , returnType = Just (TS.TypeRef ( [], [], typeName ) variableTypeExpressions)
         , scope = TS.ModuleFunction
@@ -573,7 +573,7 @@ generateConstructorDecoderFunction constructor =
                 }
     in
     TS.FunctionDeclaration
-        { name = prependDecodeToName constructor.name
+        { name = Just (prependDecodeToName constructor.name)
         , typeVariables = variableTypeExpressions
         , returnType = Just (TS.TypeRef ( [], [], constructor.name ) variableTypeExpressions)
         , scope = TS.ModuleFunction
@@ -648,7 +648,7 @@ generateUnionDecoderFunction typeName privacy typeVariables constructors =
                 (constructors |> List.map constructorToCaseBlock)
     in
     TS.FunctionDeclaration
-        { name = prependDecodeToName typeName
+        { name = Just (prependDecodeToName typeName)
         , typeVariables = variableTypeExpressions
         , returnType = Just (TS.TypeRef ( [], [], typeName ) variableTypeExpressions)
         , scope = TS.ModuleFunction
@@ -793,7 +793,7 @@ generateEncoderFunction variables typeName access typeExp =
             TS.parameter [] "value" (Just (TS.TypeRef ( [], [], typeName ) variableTypeExpressions))
     in
     TS.FunctionDeclaration
-        { name = prependEncodeToName typeName
+        { name = Just (prependEncodeToName typeName)
         , typeVariables = variableTypeExpressions
         , returnType = Just TS.Any
         , scope = TS.ModuleFunction
@@ -854,7 +854,7 @@ generateConstructorEncoderFunction constructor =
                     )
     in
     TS.FunctionDeclaration
-        { name = prependEncodeToName constructor.name
+        { name = Just (prependEncodeToName constructor.name)
         , typeVariables = variableTypeExpressions
         , returnType = Just TS.Any
         , scope = TS.ModuleFunction
@@ -905,7 +905,7 @@ generateUnionEncoderFunction typeName privacy typeVariables constructors =
                 (constructors |> List.map constructorToCaseBlock)
     in
     TS.FunctionDeclaration
-        { name = prependEncodeToName typeName
+        { name = Just (prependEncodeToName typeName)
         , typeVariables = variableTypeExpressions
         , returnType = Just TS.Any
         , scope = TS.ModuleFunction
@@ -927,7 +927,7 @@ generateConstructorConstructorFunction { name, privacy, args, typeVariables, typ
                     )
     in
     TS.FunctionDeclaration
-        { name = "constructor"
+        { name = Just "constructor"
         , typeVariables = []
         , returnType = Nothing
         , scope = TS.ClassMemberFunction

@@ -10,7 +10,7 @@ representation.
 import Elm.Syntax.Expression exposing (Expression(..))
 import Morphir.File.SourceCode exposing (Doc, concat, indentLines, newLine)
 import Morphir.IR.Path exposing (Path)
-import Morphir.TypeScript.AST exposing (CompilationUnit, Expression(..), FunctionScope(..), ImportDeclaration, NamespacePath, Parameter, Privacy(..), Statement(..), TypeDef(..), TypeExp(..))
+import Morphir.TypeScript.AST exposing (CompilationUnit, Expression(..), FunctionDefinition, FunctionScope(..), ImportDeclaration, NamespacePath, Parameter, Privacy(..), Statement(..), TypeDef(..), TypeExp(..))
 import Morphir.TypeScript.PrettyPrinter.Expressions exposing (..)
 
 
@@ -166,6 +166,9 @@ mapExpression expression =
                 , ")"
                 ]
 
+        FunctionExpression functionDefinition ->
+            mapFunctionDefinition functionDefinition
+
         Identifier name ->
             name
 
@@ -236,61 +239,8 @@ mapMaybeStatement maybeStatement =
 mapStatement : Statement -> String
 mapStatement statement =
     case statement of
-        FunctionDeclaration { name, typeVariables, returnType, scope, parameters, body, privacy } ->
-            let
-                prefaceKeywords : String
-                prefaceKeywords =
-                    case scope of
-                        ModuleFunction ->
-                            concat
-                                [ privacy |> exportIfPublic
-                                , "function "
-                                ]
-
-                        ClassStaticFunction ->
-                            concat
-                                [ "static "
-                                ]
-
-                        _ ->
-                            ""
-
-                typeVariablesString : String
-                typeVariablesString =
-                    case typeVariables of
-                        [] ->
-                            ""
-
-                        _ ->
-                            concat
-                                [ "<"
-                                , String.join ", " (typeVariables |> List.map mapTypeExp)
-                                , ">"
-                                ]
-
-                returnTypeExpression : String
-                returnTypeExpression =
-                    case returnType of
-                        Nothing ->
-                            ""
-
-                        Just typeExp ->
-                            concat [ ": ", mapTypeExp typeExp ]
-            in
-            concat
-                [ prefaceKeywords
-                , name
-                , typeVariablesString
-                , "("
-                , String.join ", " (parameters |> List.map mapParameter)
-                , ")"
-                , returnTypeExpression
-                , " {"
-                , newLine
-                , body |> List.map mapStatement |> indentLines defaultIndent
-                , newLine
-                , "}"
-                ]
+        FunctionDeclaration functionDefinition ->
+            mapFunctionDefinition functionDefinition
 
         ReturnStatement expression ->
             concat [ "return ", mapExpression expression, ";" ]
@@ -337,3 +287,70 @@ mapStatement statement =
                 , newLine
                 , "}"
                 ]
+
+
+mapFunctionDefinition : FunctionDefinition -> Doc
+mapFunctionDefinition { name, typeVariables, returnType, scope, parameters, body, privacy } =
+    let
+        prefaceKeywords : String
+        prefaceKeywords =
+            case scope of
+                ModuleFunction ->
+                    concat
+                        [ privacy |> exportIfPublic
+                        , "function "
+                        ]
+
+                ClassStaticFunction ->
+                    "static "
+
+                ClassMemberFunction ->
+                    ""
+
+                AnonymousFunction ->
+                    "function "
+
+        typeVariablesString : List TypeExp -> String
+        typeVariablesString typVars =
+            case typeVariables of
+                [] ->
+                    ""
+
+                _ ->
+                    concat
+                        [ "<"
+                        , String.join ", " (typVars |> List.map mapTypeExp)
+                        , ">"
+                        ]
+
+        nameSection : String
+        nameSection =
+            case name of
+                Just functionName ->
+                    concat [ functionName, typeVariablesString typeVariables ]
+
+                Nothing ->
+                    ""
+
+        returnTypeExpression : String
+        returnTypeExpression =
+            case returnType of
+                Nothing ->
+                    ""
+
+                Just typeExp ->
+                    concat [ ": ", mapTypeExp typeExp ]
+    in
+    concat
+        [ prefaceKeywords
+        , nameSection
+        , "("
+        , String.join ", " (parameters |> List.map mapParameter)
+        , ")"
+        , returnTypeExpression
+        , " {"
+        , newLine
+        , body |> List.map mapStatement |> indentLines defaultIndent
+        , newLine
+        , "}"
+        ]
