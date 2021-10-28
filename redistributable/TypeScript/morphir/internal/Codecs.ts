@@ -292,3 +292,25 @@ export function raiseDecodeErrorFromCustomType(
       ` "${kind}" is not a valid 'kind' field for ${customTypeName}.`
   );
 }
+
+export function validateRecordInput(
+  input: any,
+  ...fieldNames: Array<string>
+): void {
+  if (!(input instanceof Object)) {
+    throw new DecodeError(`Expected Object, got ${typeof input}`);
+  }
+  const inputObject: object = input;
+  for (var field in fieldNames) {
+    if (!(field in Object.keys(inputObject))) {
+      throw new DecodeError(`Expected field ${field} was not found`);
+    }
+  }
+  if (Object.keys(inputObject).length > fieldNames.length) {
+    throw new DecodeError(
+      `Input object has extra fields, expected ${fieldNames.length}, got ${
+        input.keys().length
+      }`
+    );
+  }
+}
