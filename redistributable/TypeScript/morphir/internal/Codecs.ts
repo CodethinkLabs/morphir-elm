@@ -148,6 +148,18 @@ export function decodeRecord<recordType>(
   });
   // @ts-ignore
   return result;
+  // This function should only be called by the morphir-generated 'decoder' functions.
+  // When called by one of those functions, those functions are responsible for
+  // constructing the `fieldDecoders` Map correctly. If the `fieldDecoders` map is
+  // constructed properly, then the function output will be of the correct type, and
+  // results should be type-safe.
+
+  // However, if this function were called with the wrong inputs, then it may not return
+  // the expected type. For this reason, the compiler rightly raises an error here.
+
+  // Hopefully in future this approach to decoders can be changed to remove the error.
+  // For now, it is necesary to override the error with @ts-ignore, and trust that the
+  // function will only be called as intended.
 }
 
 export function decodeTuple<tupleType>(
@@ -165,6 +177,18 @@ export function decodeTuple<tupleType>(
   }
   // @ts-ignore
   return result;
+  // This function should only be called by the morphir-generated 'decoder' functions.
+  // When called by one of those functions, those functions are responsible for
+  // constructing the `elementDecoders` list correctly. If the `elementDecoders` list is
+  // constructed properly, then the function output will be of the correct type, and
+  // results should be type-safe.
+
+  // However, if this function were called with the wrong inputs, then it may not return
+  // the expected type. For this reason, the compiler rightly raises an error here.
+
+  // Hopefully in future this approach to decoders can be changed to remove the error.
+  // For now, it is necesary to override the error with @ts-ignore, and trust that the
+  // function will only be called as intended.
 }
 
 export function encodeUnit(value: []): any {
