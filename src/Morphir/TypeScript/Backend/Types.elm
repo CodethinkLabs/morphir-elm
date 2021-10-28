@@ -540,6 +540,12 @@ generateConstructorDecoderFunction constructor =
                     ]
                 }
 
+        {--Given an array of inputs (eg  ["PetTrio", "Dalmatian", "Tabby", "Angora"] )
+           and a list of constructor argument names and types (eg [("arg1", DogType), ("arg2", CatType), ("arg3", RabbitType)] )
+           argDecoderCalls will generate a list of typescript function calls, to decode each of the arguments
+           eg [ decodeDog("Dalmatian"), decodeCat("Tabby"), decodeRabbit("Angora") ]
+           This generates a list of decoded elements.
+-}
         argDecoderCalls : List TS.Expression
         argDecoderCalls =
             constructor.args
@@ -555,6 +561,10 @@ generateConstructorDecoderFunction constructor =
                                 )
                     )
 
+        {--newCall takes the list of decoded elements (as created by argDecoderCalls)
+           and passes it as an argument to a TypeScript class constructor
+           ( eg `new PetTrio()` )
+-}
         newCall : TS.Expression
         newCall =
             TS.NewExpression
