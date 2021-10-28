@@ -115,53 +115,6 @@ export function decodeList<T>(decodeElement: (any) => T, input: any): Array<T> {
   return inputArray.map(decodeElement);
 }
 
-export function decodeRecord<recordType>(
-  fieldDecoders: CodecMap,
-  input: any
-): recordType {
-  if (!(input instanceof Object)) {
-    throw new DecodeError(`Expected Object, got ${typeof input}`);
-  }
-
-  const inputObject: object = input;
-
-  const fieldNames: Array<string> = Array.from(fieldDecoders.keys());
-  for (var field in fieldNames) {
-    if (!(field in Object.keys(input))) {
-      throw new DecodeError(`Expected field ${field} was not found`);
-    }
-  }
-  if (Object.keys(inputObject).length > fieldNames.length) {
-    throw new DecodeError(
-      `Input object has extra fields, expected ${fieldNames.length}, got ${
-        input.keys().length
-      }`
-    );
-  }
-
-  var result = new Object();
-  fieldDecoders.forEach((decoder: CodecFunction, name: string) => {
-    if (!(name in inputObject)) {
-      throw new DecodeError(`Input record object missing field: ${name}`);
-    }
-    result[name] = decoder(inputObject[name]);
-  });
-  // @ts-ignore
-  return result;
-  // This function should only be called by the morphir-generated 'decoder' functions.
-  // When called by one of those functions, those functions are responsible for
-  // constructing the `fieldDecoders` Map correctly. If the `fieldDecoders` map is
-  // constructed properly, then the function output will be of the correct type, and
-  // results should be type-safe.
-
-  // However, if this function were called with the wrong inputs, then it may not return
-  // the expected type. For this reason, the compiler rightly raises an error here.
-
-  // Hopefully in future this approach to decoders can be changed to remove the error.
-  // For now, it is necesary to override the error with @ts-ignore, and trust that the
-  // function will only be called as intended.
-}
-
 export function decodeTuple<tupleType>(
   elementDecoders: CodecList,
   input: any
