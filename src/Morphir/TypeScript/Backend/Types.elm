@@ -629,8 +629,8 @@ generateUnionDecoderFunction typeName privacy typeVariables constructors =
                     ]
                 }
 
-        constructorToCase : ConstructorDetail ta -> ( TS.Expression, List TS.Statement )
-        constructorToCase constructor =
+        constructorToCaseBlock : ConstructorDetail ta -> ( TS.Expression, List TS.Statement )
+        constructorToCaseBlock constructor =
             ( constructor.name |> Name.toTitleCase |> TS.StringLiteralExpression
             , [ TS.ReturnStatement
                     (TS.Call
@@ -645,7 +645,7 @@ generateUnionDecoderFunction typeName privacy typeVariables constructors =
         switchStatement =
             TS.SwitchStatement
                 (TS.Identifier "kind")
-                (constructors |> List.map constructorToCase)
+                (constructors |> List.map constructorToCaseBlock)
     in
     TS.FunctionDeclaration
         { name = prependDecodeToName typeName
@@ -886,8 +886,8 @@ generateUnionEncoderFunction typeName privacy typeVariables constructors =
         valueParam =
             TS.parameter [] "value" (Just (TS.TypeRef ( [], [], typeName ) variableTypeExpressions))
 
-        constructorToCase : ConstructorDetail ta -> ( TS.Expression, List TS.Statement )
-        constructorToCase constructor =
+        constructorToCaseBlock : ConstructorDetail ta -> ( TS.Expression, List TS.Statement )
+        constructorToCaseBlock constructor =
             ( constructor.name |> Name.toTitleCase |> TS.StringLiteralExpression
             , [ TS.ReturnStatement
                     (TS.Call
@@ -902,7 +902,7 @@ generateUnionEncoderFunction typeName privacy typeVariables constructors =
         switchStatement =
             TS.SwitchStatement
                 (TS.MemberExpression { object = TS.Identifier "value", member = TS.Identifier "kind" })
-                (constructors |> List.map constructorToCase)
+                (constructors |> List.map constructorToCaseBlock)
     in
     TS.FunctionDeclaration
         { name = prependEncodeToName typeName
