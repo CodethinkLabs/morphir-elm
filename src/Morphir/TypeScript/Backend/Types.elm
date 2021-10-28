@@ -302,15 +302,15 @@ mapTypeExp tpe =
             TS.UnhandledType "Function"
 
 
-genericDecoder : TS.TypeExp -> TS.TypeExp
-genericDecoder typeExp =
+decoderTypeSignature : TS.TypeExp -> TS.TypeExp
+decoderTypeSignature typeExp =
     TS.FunctionTypeExp
         [ TS.Parameter [] "input" (Just TS.Any) ]
         typeExp
 
 
-genericEncoder : TS.TypeExp -> TS.TypeExp
-genericEncoder typeExp =
+encoderTypeSignature : TS.TypeExp -> TS.TypeExp
+encoderTypeSignature typeExp =
     TS.FunctionTypeExp
         [ TS.Parameter [] "value" (Just typeExp) ]
         TS.Any
@@ -486,7 +486,7 @@ generateDecoderFunction variables typeName access typeExp =
                         TS.parameter
                             []
                             (prependDecodeToName var)
-                            (Just (genericDecoder (TS.Variable (Name.toTitleCase var))))
+                            (Just (decoderTypeSignature (TS.Variable (Name.toTitleCase var))))
                     )
 
         inputParam : TS.Parameter
@@ -519,7 +519,7 @@ generateConstructorDecoderFunction constructor =
                         TS.parameter
                             []
                             (prependDecodeToName var)
-                            (Just (genericDecoder (TS.Variable (Name.toTitleCase var))))
+                            (Just (decoderTypeSignature (TS.Variable (Name.toTitleCase var))))
                     )
 
         inputParam : TS.Parameter
@@ -591,7 +591,7 @@ generateUnionDecoderFunction typeName privacy typeVariables constructors =
                         TS.parameter
                             []
                             (prependDecodeToName var)
-                            (Just (genericDecoder (TS.Variable (Name.toTitleCase var))))
+                            (Just (decoderTypeSignature (TS.Variable (Name.toTitleCase var))))
                     )
 
         inputParam : TS.Parameter
@@ -775,7 +775,7 @@ generateEncoderFunction variables typeName access typeExp =
                         TS.parameter
                             []
                             (prependEncodeToName var)
-                            (Just (genericEncoder (TS.Variable (Name.toTitleCase var))))
+                            (Just (encoderTypeSignature (TS.Variable (Name.toTitleCase var))))
                     )
 
         valueParam : TS.Parameter
@@ -808,7 +808,7 @@ generateConstructorEncoderFunction constructor =
                         TS.parameter
                             []
                             (prependEncodeToName var)
-                            (Just (genericEncoder (TS.Variable (Name.toTitleCase var))))
+                            (Just (encoderTypeSignature (TS.Variable (Name.toTitleCase var))))
                     )
 
         valueParam : TS.Parameter
@@ -869,7 +869,7 @@ generateUnionEncoderFunction typeName privacy typeVariables constructors =
                         TS.parameter
                             []
                             (prependEncodeToName var)
-                            (Just (genericEncoder (TS.Variable (Name.toTitleCase var))))
+                            (Just (encoderTypeSignature (TS.Variable (Name.toTitleCase var))))
                     )
 
         valueParam : TS.Parameter
