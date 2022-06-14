@@ -202,6 +202,21 @@ async function testIntegrationBuildSpark(cb) {
      }
 }
 
+async function testIntegrationTestSpark(cb) {
+     try {
+         await execa(
+             'mill', ['spark.test'],
+             { stdio, cwd: 'tests-integration' },
+         )
+     } catch (err) {
+         if (err.code == 'ENOENT') {
+    console.log("Skipping testIntegrationTestSpark as `mill` build tool isn't available.");
+         } else {
+             throw err;
+         }
+     }
+}
+
 // Generate TypeScript API for reference model.
 async function testIntegrationGenTypeScript(cb) {
     await morphirElmGen(
@@ -216,18 +231,21 @@ function testIntegrationTestTypeScript(cb) {
         .pipe(mocha({ require: 'ts-node/register' }));
 }
 
+testIntegrationSpark = series(
+    testIntegrationGenSpark,
+    testIntegrationBuildSpark,
+    testIntegrationTestSpark,
+)
+
 const testIntegration = series(
     testIntegrationClean,
     testIntegrationMake,
     parallel(
         testIntegrationMorphirTest,
+	testIntegrationSpark,
         series(
             testIntegrationGenScala,
             testIntegrationBuildScala,
-        ),
-        series(
-            testIntegrationGenSpark,
-            testIntegrationBuildSpark
         ),
         series(
             testIntegrationGenTypeScript,
@@ -277,6 +295,7 @@ exports.buildCLI2 = buildCLI2;
 exports.build = build;
 exports.test = test;
 exports.testIntegration = testIntegration;
+exports.testIntegrationSpark = testIntegrationSpark;
 exports.testMorphirIR = testMorphirIR;
 exports.testMorphirIRTypeScript = testMorphirIR;
 exports.default =
