@@ -2,11 +2,13 @@
 import mill._, scalalib._
 
 object generated extends Module {
-  object refModel extends Module {
+  object sparkModel extends Module {
     object spark extends ScalaModule {
         def scalaVersion = "2.12.12"
         val paths = Seq(
-          millSourcePath / os.up / "src" / "spark" / "sparktests"
+          millSourcePath / os.up / "src" / "spark" / "sparktests" / "functiontests",
+          millSourcePath / os.up / "src" / "spark" / "sparktests" / "types",
+          millSourcePath / os.up / "src" / "spark" / "sparktests" / "typetests"
         )
         def sources = T.sources {
           paths.map(p => PathRef(p))
