@@ -24,6 +24,18 @@ testInt source =
                 a.foo == 13
             )
 
+testMaybeBool : List { foo : Maybe Bool } -> List { foo : Maybe Bool }
+testMaybeBool source =
+    source
+        |> List.filter
+            (\a ->
+                case a.foo of
+                    Just value ->
+                        True
+                    Nothing ->
+                        False
+            )
+
 testString : List { foo : String } -> List { foo : String }
 testString source =
     source
