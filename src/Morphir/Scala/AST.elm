@@ -196,7 +196,41 @@ type Type
     | CommentedType Type String
 
 
-{-| -}
+{-| Type that represents a Scala Value.
+
+These are the supported Values:
+
+  - **Literal**
+    - Specifies a Scala literal
+  - **Variable**
+    - Specifies a Scala variable
+  - **Ref**
+    - Represents a Scala function reference
+  - **Select**
+    - Represents an operation with a target expression and a name, where the name is applied with a '.' to the target.
+    - For example, '..col("ageOfItem").isin(1, 2, 3)' where 'isin' is the name and '..col("ageOfItem")' is the target expression.
+    - Any argument list needed, such as '(1, 2, 3)', is appended to the Select value.
+  - **Wildcard**
+  - **Apply**
+    - Apply a Scala function
+  - **UnOp**
+  - **BinOp**
+    - Scala binary operation
+  - **Lambda**
+  - **Block**
+  - **MatchCases**
+  - **Match**
+  - **IfElse**
+  - **Tuple**
+  - **StructuralValue**
+  - **Unit**
+    - Return type of a Scala function which doesn't return anything
+    - Unit is represented as '{}'
+  - **This**
+  - **CommentedValue**
+  - **ForComp**
+
+-}
 type Value
     = Literal Lit
     | Variable Name
