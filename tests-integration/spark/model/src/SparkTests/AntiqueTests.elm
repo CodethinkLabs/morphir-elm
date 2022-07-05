@@ -5,6 +5,31 @@ import SparkTests.DataDefinition.Field.Report exposing (FeedBack(..))
 import SparkTests.DataDefinition.Persistence.Income.AntiqueShop exposing (Antique, Product(..))
 
 
+antique_items : List Antique -> List Antique
+antique_items antiques =
+    List.filter is_item_antique antiques
+
+
+vintage_items : List Antique -> List Antique
+vintage_items antiques =
+    List.filter is_item_vintage antiques
+
+
+thousands_items : List Antique -> List Antique
+thousands_items antiques =
+    List.filter is_item_worth_thousands antiques
+
+
+millions_items : List Antique -> List Antique
+millions_items antiques =
+    List.filter is_item_worth_millions antiques
+
+
+seized_items : List Antique -> List Antique
+seized_items antiques =
+    List.filter seize_item antiques
+
+
 is_item_antique : Antique -> Bool
 is_item_antique antique =
     let
