@@ -379,6 +379,14 @@ expressionFromValue ir morphirValue =
                     expressionFromValue ir arg
                         |> Result.map (\expr -> Function "max" [ expr ])
 
+                Value.Apply _ (Value.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "list" ] ], [ "sum" ] )) arg ->
+                    expressionFromValue ir arg
+                        |> Result.map (\expr -> Function "sum" [ expr ])
+
+                Value.Apply _ (Value.Reference _ ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "list" ] ], [ "length" ] )) arg ->
+                    expressionFromValue ir arg
+                        |> Result.map (\expr -> Function "count" [ expr ])
+
                 Value.Apply _ (Value.Apply _ (Value.Reference _ (( package, modName, _ ) as ref)) arg) argValue ->
                     case ( package, modName ) of
                         ( [ [ "morphir" ], [ "s", "d", "k" ] ], [ [ "basics" ] ] ) ->
