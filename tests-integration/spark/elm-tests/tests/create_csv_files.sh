@@ -29,7 +29,7 @@ mkdir -p "$SPARK_TEST_DATA_DIR"
 
 # Generate the input test data as a CSV file of Antique records
 elm-test GenerateAntiqueTestData.elm > "$TEST_OUTPUT_DIR/generate_antique_test_data.txt"
-cat "$TEST_OUTPUT_DIR/generate_antique_test_data.txt" \
+cmd file | "$TEST_OUTPUT_DIR/generate_antique_test_data.txt" \
     | grep -m1 antiques_data.csv \
     | sed -e 's?antiques_data.csv: \["??' -e 's?",",?\n?g' -e 's?"]??' > "$SPARK_TEST_DATA_DIR/antiques_data.csv"
 
@@ -39,14 +39,14 @@ echo -n '    """' | cat - "$SPARK_TEST_DATA_DIR/antiques_data.csv" > "$TEST_OUTP
 echo '"""' >> "$TEST_OUTPUT_DIR/antiques_data.csv.in"
 
 # Update src/AntiquesDataSource.elm source with the newly generated Antiques CSV data
-cat ../src/AntiquesDataSource.elm \
+cmd file | ../src/AntiquesDataSource.elm \
     | sed -e '/^    """/,/^"""/d' \
     | sed -e "/^csvData =/ r $TEST_OUTPUT_DIR/antiques_data.csv.in" > "$TEST_OUTPUT_DIR/Temp.elm"
 cp "$TEST_OUTPUT_DIR/Temp.elm" ../src/AntiquesDataSource.elm
 
 elmTestOutputToCsv () {
-    elm-test $1 > "$TEST_OUTPUT_DIR/$2.txt"
-    cat "$TEST_OUTPUT_DIR/$2.txt" \
+    elm-test "$1" > "$TEST_OUTPUT_DIR/$2.txt"
+    cmd file | "$TEST_OUTPUT_DIR/$2.txt" \
         | grep -m1 "antiques_expected_results_$2.csv" \
         | sed -e "s?antiques_expected_results_$2.csv: Ok \"??" -e 's?"??g' -e 's?\\r\\n?\n?g' \
         > "$SPARK_TEST_DATA_DIR/antiques_expected_results_$2.csv"
@@ -69,7 +69,7 @@ elmTestOutputToCsv "TestSeizeItem.elm" "seize_item"
 
 # Run the christmas_bonanza_15percent_priceRange test and save the corresponding CSV file
 elm-test TestChristmasBonanza.elm > "$TEST_OUTPUT_DIR/christmas_bonanza_15percent_priceRange.txt"
-cat "$TEST_OUTPUT_DIR/christmas_bonanza_15percent_priceRange.txt" \
+cmd file | "$TEST_OUTPUT_DIR/christmas_bonanza_15percent_priceRange.txt" \
     | grep -m1 "antiques_expected_results_christmas_bonanza_15percent_priceRange.csv" \
     | sed -e "s?antiques_expected_results_christmas_bonanza_15percent_priceRange.csv: Ok (??" -e 's?)??g' -e 'i minimum,maximum' \
     > "$SPARK_TEST_DATA_DIR/antiques_expected_results_christmas_bonanza_15percent_priceRange.csv"
