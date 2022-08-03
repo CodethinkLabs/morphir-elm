@@ -45,26 +45,27 @@ cp "$TEST_OUTPUT_DIR/Temp.elm" ../src/AntiquesDataSource.elm
 
 elmTestOutputToCsv () {
     elm-test "$1" > "$TEST_OUTPUT_DIR/$2.txt"
-    grep -m1 "antiques_expected_results_$2.csv" "$TEST_OUTPUT_DIR/$2.txt" |sed -e "s?antiques_expected_results_$2.csv: Ok \"??" -e 's?"??g' -e 's?\\r\\n?\n?g' \
-    > "$SPARK_TEST_DATA_DIR/antiques_expected_results_$2.csv"
+    grep -m1 "expected_results_$2.csv" "$TEST_OUTPUT_DIR/$2.txt" |sed -e "s?expected_results_$2.csv: Ok \"??" -e 's?"??g' -e 's?\\r\\n?\n?g' \
+    > "$SPARK_TEST_DATA_DIR/expected_results_$2.csv"
 }
 
 # Run the is_item_vintage test and save the corresponding CSV file
-elmTestOutputToCsv "TestItems.elm" "is_item_vintage"
+elmTestOutputToCsv "TestIsItemVintage.elm" "is_item_vintage"
 
 # Run the is_item_worth_millions test and save the corresponding CSV file
-elmTestOutputToCsv "TestItems.elm" "is_item_worth_millions"
+elmTestOutputToCsv "TestIsItemWorthMillions.elm" "is_item_worth_millions"
 
 # Run the is_item_worth_thousands test and save the corresponding CSV file
-elmTestOutputToCsv "TestItems.elm" "is_item_worth_thousands"
+elmTestOutputToCsv "TestIsItemWorthThousands.elm" "is_item_worth_thousands"
 
 # Run the is_item_antique test and save the corresponding CSV file
-elmTestOutputToCsv "TestItems.elm" "is_item_antique"
+elmTestOutputToCsv "TestIsItemAntique.elm" "is_item_antique"
 
 # Run the seize_item test and save the corresponding CSV file
-elmTestOutputToCsv "TestItems.elm" "seize_item"
+elmTestOutputToCsv "TestSeizeItem.elm" "seize_item"
 
 # Run the christmas_bonanza_15percent_priceRange test and save the corresponding CSV file
-elm-test TestChristmasBonanza.elm > "$TEST_OUTPUT_DIR/christmas_bonanza_15percent_priceRange.txt"
-grep -m1 "antiques_expected_results_christmas_bonanza_15percent_priceRange.csv" "$TEST_OUTPUT_DIR/christmas_bonanza_15percent_priceRange.txt" | sed -e "s?antiques_expected_results_christmas_bonanza_15percent_priceRange.csv: Ok (??" -e 's?)??g' -e 'i minimum,maximum' \
-> "$SPARK_TEST_DATA_DIR/antiques_expected_results_christmas_bonanza_15percent_priceRange.csv"
+# This one is slightly different from the others because it manually reformats the output into csv
+elm-test "TestChristmasBonanza.elm" > "$TEST_OUTPUT_DIR/christmas_bonanza_15percent_priceRange.txt"
+grep -m1 "expected_results_christmas_bonanza_15percent_priceRange.csv" "$TEST_OUTPUT_DIR/christmas_bonanza_15percent_priceRange.txt" | sed -e "s?expected_results_christmas_bonanza_15percent_priceRange.csv: Ok (??" -e 's?)??g' -e 'i minimum,maximum' \
+> "$SPARK_TEST_DATA_DIR/expected_results_christmas_bonanza_15percent_priceRange.csv"

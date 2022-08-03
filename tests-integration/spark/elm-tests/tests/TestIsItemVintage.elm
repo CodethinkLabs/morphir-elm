@@ -15,13 +15,14 @@
 -}
 
 
-module TestChristmasBonanza exposing (..)
+module TestIsItemVintage exposing (..)
 
+import CsvUtils exposing (antiqueEncoder)
 import AntiquesDataSource exposing (antiquesDataSource)
-import SparkTests.Rules.Income.Antique exposing (christmas_bonanza_15percent_priceRange)
+import SparkTests.Rules.Income.Antique exposing (is_item_vintage)
 import TestUtils exposing (executeTest)
 import Test exposing (Test)
 
--- lazy csv export - We know the output's a single tuple so we mangle it into a csv using sed later.
-testChristmasBonanza : Test
-testChristmasBonanza = executeTest "christmas_bonanza" antiquesDataSource christmas_bonanza_15percent_priceRange (\a -> a)
+testIsItemVintage : Test
+testIsItemVintage = executeTest "is_item_vintage" antiquesDataSource (List.filter is_item_vintage) antiqueEncoder
+
