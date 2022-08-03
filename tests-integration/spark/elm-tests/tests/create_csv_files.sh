@@ -50,19 +50,19 @@ elmTestOutputToCsv () {
 }
 
 # Run the is_item_vintage test and save the corresponding CSV file
-elmTestOutputToCsv "TestIsItemVintage.elm" "is_item_vintage"
+elmTestOutputToCsv "TestItems.elm" "is_item_vintage"
 
 # Run the is_item_worth_millions test and save the corresponding CSV file
-elmTestOutputToCsv "TestIsItemWorthMillions.elm" "is_item_worth_millions"
+elmTestOutputToCsv "TestItems.elm" "is_item_worth_millions"
 
 # Run the is_item_worth_thousands test and save the corresponding CSV file
-elmTestOutputToCsv "TestIsItemWorthThousands.elm" "is_item_worth_thousands"
+elmTestOutputToCsv "TestItems.elm" "is_item_worth_thousands"
 
 # Run the is_item_antique test and save the corresponding CSV file
-elmTestOutputToCsv "TestItemIsAntique.elm" "is_item_antique"
+elmTestOutputToCsv "TestItems.elm" "is_item_antique"
 
 # Run the seize_item test and save the corresponding CSV file
-elmTestOutputToCsv "TestSeizeItem.elm" "seize_item"
+elmTestOutputToCsv "TestItems.elm" "seize_item"
 
 # Run the christmas_bonanza_15percent_priceRange test and save the corresponding CSV file
 elm-test TestChristmasBonanza.elm > "$TEST_OUTPUT_DIR/christmas_bonanza_15percent_priceRange.txt"

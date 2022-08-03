@@ -15,7 +15,7 @@
 -}
 
 
-module TestIsItemVintage exposing (..)
+module TestItems exposing (..)
 
 import AntiqueCsvEncoder exposing (antiqueEncoder)
 import AntiquesDataSource exposing (antiquesDataSource)
@@ -24,10 +24,11 @@ import Expect exposing (Expectation)
 import SparkTests.DataDefinition.Persistence.Income.AntiqueShop exposing (Antique, Product(..))
 import SparkTests.Rules.Income.Antique exposing (..)
 import Test exposing (..)
+import String exposing (..)
 
 
-testIsItemVintage : Test
-testIsItemVintage =
+testAll : String -> Int -> ( Antique -> Bool) -> Test
+testAll  fileName compInteger testType =
     let
         matchingAntiques : Result Error (List Antique)
         matchingAntiques =
@@ -37,7 +38,7 @@ testIsItemVintage =
                         itemsList
                             |> List.filter
                                 (\item ->
-                                    is_item_vintage item
+                                    testType item
                                 )
                     )
 
@@ -49,6 +50,24 @@ testIsItemVintage =
                     )
 
         _ =
-            Debug.log "antiques_expected_results_is_item_vintage.csv" csvResults
+            Debug.log ("antiques_expected_results_" ++ fileName ++ ".csv")  csvResults
     in
-    test "Testing is_item_vintage antique shop rule" (\_ -> Expect.equal (matchingAntiques |> Result.map (\list -> List.length list)) (1200 |> Ok))
+    test ("Testing" ++ fileName ++ "antique shop rule") (\_ -> Expect.equal (matchingAntiques |> Result.map (\list -> List.length list)) (compInteger |> Ok))
+
+testIsItemVintage : Test
+testIsItemVintage = testAll "is_item_vintage" 1200 is_item_vintage
+
+testIsItemWorthMillions : Test
+testIsItemWorthMillions = testAll "is_item_worth_millions" 120 is_item_worth_millions
+
+testIsItemWorthThousands : Test
+testIsItemWorthThousands = testAll "is_item_worth_thousands" 2160 is_item_worth_thousands
+
+
+testIsItemAntique : Test
+testIsItemAntique = testAll "is_item_antique" 2400 is_item_antique
+
+
+testSeizeItem : Test
+testSeizeItem = testAll "seize_item" 12200 seize_item
+

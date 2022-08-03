@@ -247,7 +247,6 @@ async function testCreateCSV(cb) {
         console.log("Automatically creating CSV files is not available on this platform");
     } else {
         try {
-            console.log("here");
             process.chdir('./tests-integration/spark/elm-tests/tests',);
             shell.exec('sh ./create_csv_files.sh');
             process.chdir(cwd);
