@@ -539,32 +539,46 @@ inlineArguments paramList argList fnBody =
             fnBody
 
 
+fQNameToPartialSparkFunction : FQName -> Result Error (List Expression -> Expression)
+fQNameToPartialSparkFunction fQName =
+    -- doesn't cover every call in mapSDKFunctions because some functions need special treatment
+    case (FQName.toString fQName) of
+        -- String Functions
+        "Morphir.SDK:String:replace" ->
+            Function "regexp_replace" |> Ok
+        "Morphir.SDK:String:reverse" ->
+            Function "reverse" |> Ok
+        "Morphir.SDK:String:toUpper" ->
+            Function "upper" |> Ok
+        "Morphir.SDK:String:concat" ->
+            UnsupportedSDKFunction fQName |> Err
+
+        -- List Functions
+        "Morphir.SDK:List:maximum" ->
+            Function "max" |> Ok
+        "Morphir.SDK:List:minimum" ->
+            Function "min" |> Ok
+        "Morphir.SDK:List:length" ->
+            Function "count" |> Ok
+        "Morphir.SDK:List:sum" ->
+            Function "sum" |> Ok
+
+        _ ->
+            FunctionNotFound fQName |> Err
+
+
 mapSDKFunctions : IR -> List TypedValue -> FQName -> Result Error Expression
 mapSDKFunctions ir args fQName =
     case ( FQName.toString fQName, args ) of
-        -- HANDLE STRING FUNCTIONS
         ( "Morphir.SDK:String:replace", pattern :: replacement :: target :: [] ) ->
-            [ target, pattern, replacement ]
-                |> List.map (expressionFromValue ir)
-                |> ResultList.keepFirstError
-                |> Result.map (Function "regexp_replace")
+            Result.map2
+                (\partialFunc exprArgs -> partialFunc exprArgs)
+                (fQNameToPartialSparkFunction fQName)
+                ( [ target, pattern, replacement ]
+                    |> List.map (expressionFromValue ir)
+                    |> ResultList.keepFirstError
+                )
 
-        ( "Morphir.SDK:String:reverse", _ ) ->
-            args
-                |> List.map (expressionFromValue ir)
-                |> ResultList.keepFirstError
-                |> Result.map (Function "reverse")
-
-        ( "Morphir.SDK:String:toUpper", _ ) ->
-            args
-                |> List.map (expressionFromValue ir)
-                |> ResultList.keepFirstError
-                |> Result.map (Function "upper")
-
-        ( "Morphir.SDK:String:concat", _ ) ->
-            UnsupportedSDKFunction fQName |> Err
-
-        -- HANDLE LIST FUNCTIONS
         ( "Morphir.SDK:List:member", item :: (Value.List _ list) :: [] ) ->
             Result.map2
                 (\itemExpr listExpr ->
@@ -576,28 +590,14 @@ mapSDKFunctions ir args fQName =
                     |> ResultList.keepFirstError
                 )
 
-        ( "Morphir.SDK:List:maximum", item :: [] ) ->
-            expressionFromValue ir item
-                |> Result.map List.singleton
-                |> Result.map (Function "max")
-
-        ( "Morphir.SDK:List:minimum", item :: [] ) ->
-            expressionFromValue ir item
-                |> Result.map List.singleton
-                |> Result.map (Function "min")
-
-        ( "Morphir.SDK:List:length", item :: [] ) ->
-            expressionFromValue ir item
-                |> Result.map List.singleton
-                |> Result.map (Function "count")
-
-        ( "Morphir.SDK:List:sum", item :: [] ) ->
-            expressionFromValue ir item
-                |> Result.map List.singleton
-                |> Result.map (Function "sum")
-
         _ ->
-            FunctionNotFound fQName |> Err
+            Result.map2
+                (\partialFunc exprArgs -> partialFunc exprArgs)
+                (fQNameToPartialSparkFunction fQName)
+                (args
+                    |> List.map (expressionFromValue ir)
+                    |> ResultList.keepFirstError
+                )
 
 
 {-| A simple mapping for a Morphir.SDK:Basics binary operations to its spark string equivalent
