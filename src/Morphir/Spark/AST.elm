@@ -200,6 +200,22 @@ objectExpressionFromValue ir morphirValue =
             inlineLetDef [] [] morphirValue
                 |> objectExpressionFromValue ir
 
+        Value.Apply (Type.Reference _ ([["morphir"],["s","d","k"]],[["basics"]],basicType) _) (Value.Reference _ applyFuncName) sourceRelation ->
+            -- TODO: Restrict to basic types only
+            objectExpressionFromValue ir sourceRelation
+                |> Result.andThen
+                    (\sourceExpression ->
+                        case sourceExpression of
+                            Select (( sourceName, sourceArgs ) :: []) sourceSource ->
+                                fQNameToPartialSparkFunction applyFuncName
+                                    |> Result.map
+                                        (\partialFunc ->
+                                            Select [(sourceName, partialFunc [sourceArgs])] sourceSource
+                                        )
+                            other ->
+                                Err (UnhandledObjectExpression other)
+                    )
+
         other ->
             let
                 _ =
