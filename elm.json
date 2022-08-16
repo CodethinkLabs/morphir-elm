@@ -52,6 +52,7 @@
     ],
     "elm-version": "0.19.0 <= v < 0.20.0",
     "dependencies": {
+        "Chadtech/unique-list": "2.1.5 <= v < 3.0.0",
         "chain-partners/elm-bignum": "1.0.1 <= v < 2.0.0",
         "cmditch/elm-bigint": "1.0.1 <= v < 2.0.0",
         "cuducos/elm-format-number": "8.1.4 <= v < 9.0.0",

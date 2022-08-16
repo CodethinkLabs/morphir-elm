@@ -38,6 +38,7 @@ generator uses.
 
 import Array exposing (Array)
 import Dict exposing (Dict)
+import List.Unique exposing (filterDuplicates)
 import Morphir.IR as IR exposing (..)
 import Morphir.IR.FQName as FQName exposing (FQName)
 import Morphir.IR.Literal exposing (Literal(..))
@@ -146,7 +147,50 @@ type Error
     | UnhandledPatternMatch ( Pattern (Type.Type ()), TypedValue )
     | UnhandledNamedExpressions NamedExpressions
     | UnhandledObjectExpression ObjectExpression
+    | NotUniqueSourceExpressions (List ObjectExpression)
 
+
+getSourceExpression : ObjectExpression -> Result Error ObjectExpression
+getSourceExpression expression =
+    case expression of
+        Filter _ sourceExpression ->
+            sourceExpression |> Ok
+        Select _ sourceExpression ->
+            sourceExpression |> Ok
+        other ->
+            UnhandledObjectExpression other |> Err
+
+getUniqueSourceExpressions : List ObjectExpression -> Result Error (List ObjectExpression)
+getUniqueSourceExpressions objectExpressions =
+    objectExpressions
+        |> List.map getSourceExpression
+        |> ResultList.keepFirstError
+        |> Result.map filterDuplicates
+
+
+{-| Gets the source expression if they're all the same
+-}
+getOneSourceExpression : List ObjectExpression -> Result Error ObjectExpression
+getOneSourceExpression objectExpressions =
+    case (getUniqueSourceExpressions objectExpressions) of
+        (Ok (onlyExpression :: [] ) ) ->
+            Ok onlyExpression
+        (Ok ((onlyExpression :: _ ) as expressions) ) ->
+            NotUniqueSourceExpressions expressions |> Err
+        (Ok [] ) ->
+            NotUniqueSourceExpressions [] |> Err
+        (Err error) ->
+            Err error
+
+
+namedExpressionFromObjectExpression : ObjectExpression -> Result Error (Name, Expression)
+namedExpressionFromObjectExpression objectExpression =
+    case objectExpression of
+        Select ( (name, expression) :: []) _ ->
+            Ok (name, expression)
+        other ->
+            UnhandledObjectExpression other |> Err
+        
 
 {-| provides a way to create ObjectExpressions from a Morphir Value.
 This is where support for various top level expression is added. This function fails to produce an ObjectExpression
@@ -200,8 +244,25 @@ objectExpressionFromValue ir morphirValue =
             inlineLetDef [] [] morphirValue
                 |> objectExpressionFromValue ir
 
+        Value.Tuple _ sourceRelations ->
+            -- get the objectExpression from every source value, now it's a ResultList.
+            -- I also need the constraint that every objectExpression uses the same source. (Does this mean I can't do filter functions?)
+            sourceRelations
+                |> List.map (objectExpressionFromValue ir)
+                |> ResultList.keepFirstError
+                |> Result.andThen
+                    (\sourceExpressions ->
+                        Result.map2
+                            Select
+                                (sourceExpressions
+                                    |> List.map namedExpressionFromObjectExpression
+                                    |> ResultList.keepFirstError
+                                )
+                                (getOneSourceExpression sourceExpressions)
+                    )
+
         Value.Apply (Type.Reference _ ([["morphir"],["s","d","k"]],[["basics"]],basicType) _) (Value.Reference _ applyFuncName) sourceRelation ->
-            -- TODO: Restrict to basic types only
+            -- Should I be restricting this to returned String, Float, Int, etc.?
             objectExpressionFromValue ir sourceRelation
                 |> Result.andThen
                     (\sourceExpression ->
@@ -279,6 +340,10 @@ replaceLambdaArg replacementValue lam =
                 |> Ok
 
         other ->
+            let
+                _ =
+                    Debug.log "in replaceLambdaArg unhandled" other
+            in
             UnhandledValue other |> Err
 
 
@@ -397,6 +462,10 @@ expressionFromValue ir morphirValue =
             mapPatterns ir onValue cases
 
         other ->
+            let
+                _ =
+                    Debug.log "in expressionFromValue unhandled" other
+            in
             UnhandledValue other |> Err
 
 
@@ -509,6 +578,10 @@ mapApply ir args target =
                 |> expressionFromValue ir
 
         _ ->
+            let
+                _ =
+                    Debug.log "in mapApply unhandled" target
+            in
             UnhandledValue target |> Err
 
 
