@@ -103,3 +103,16 @@ testAggregateRenameKey antiques =
                 , count = inputs count
                 }
             )
+
+
+testKey2 : List Antique -> List { itemType : Product, count : Float }
+testKey2 antiques =
+    antiques
+        |> groupBy (key2 .category .product)
+        |> aggregate
+            (\key inputs ->
+                { itemType = key
+                , count = inputs count
+                }
+            )
+        |> Debug.log("value of key" key)
