@@ -111,8 +111,7 @@ testKey2 antiques =
         |> groupBy (key2 .category .product)
         |> aggregate
             (\key inputs ->
-                { itemType = key
+                { itemType =  (Debug.log "value of key" key)
                 , count = inputs count
                 }
             )
-        |> Debug.log("value of key" key)

@@ -622,7 +622,7 @@ constructAggregationCall aggregateBody groupKey sourceRelation =
                     case keyFields of
                         -- expect only one field that uses "key"
                         ( name, _ ) :: [] ->
-                            Just name |> Ok
+                            Just name |> Ok 
 
                         [] ->
                             Nothing |> Ok
